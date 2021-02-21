@@ -320,7 +320,7 @@ class OvershotDependenciesTest : BaseTest() {
       .writeIn(testProjectDir.toPath())
 
     val result = gradleRunner
-      .withArguments("moduleCheckOvershotDependency")
+      .withArguments("moduleCheckOvershotDependency", "--stacktrace")
       .build()
 
     result.task(":moduleCheckOvershotDependency")!!.outcome shouldBe TaskOutcome.SUCCESS

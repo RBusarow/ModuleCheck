@@ -93,3 +93,55 @@ tasks.create("setupPluginUploadFromEnvironment") {
     System.setProperty("gradle.publish.secret", secret)
   }
 }
+
+val foo by tasks.registering(MyTask::class)
+
+@Suppress("UnstableApiUsage")
+abstract class MyTask @Inject constructor(
+  val workerExecutor: WorkerExecutor
+) : DefaultTask() {
+  // @Inject abstract fun getWorkerExecutor(): WorkerExecutor?
+
+  interface Thing : WorkParameters {
+    val arg: Property<String>
+    var out: String
+  }
+
+  object Boo {
+    val findings = mutableListOf<String>()
+  }
+
+  @org.gradle.api.tasks.TaskAction
+  fun execute() {
+
+    val queue = workerExecutor.noIsolation()
+
+    repeat(10) {
+      queue.submit(MyThing::class) {
+        arg.set(it.toString())
+      }
+    }
+
+    queue.await()
+
+    Boo.findings.forEach { f ->
+      println(f)
+    }
+  }
+
+  abstract class MyThing : WorkAction<Thing> {
+
+    override fun execute() {
+      // println("""          ----------------- inside a worker --> ${parameters.arg}""")
+
+      println("arg ---> ${parameters.arg.get()}                      ${parameters.arg.get()}")
+      Thread.sleep(500L)
+      println("arg ---> ${parameters.arg.get()}                                         ${parameters.arg.get()}")
+
+      synchronized(Boo) {
+        Boo.findings.add(parameters.arg.get())
+      }
+    }
+  }
+}
+

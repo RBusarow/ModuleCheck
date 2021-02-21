@@ -17,13 +17,15 @@
 
 package modulecheck.api
 
+import java.io.Serializable
+
 data class KaptProcessor(val coordinates: String)
 
 class KaptMatcher(
   val name: String,
   val processor: String,
   annotationImports: List<String>
-) {
+) : Serializable {
 
   val annotationImports = annotationImports.map { it.toRegex() }
 

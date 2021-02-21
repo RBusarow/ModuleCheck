@@ -24,8 +24,10 @@ import modulecheck.gradle.task.ModuleCheckAllTask
 import modulecheck.gradle.task.ModuleCheckTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.provider.Property
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.register
+import org.gradle.workers.WorkParameters
 import javax.inject.Inject
 
 fun Project.moduleCheck(config: ModuleCheckExtension.() -> Unit) {
@@ -43,7 +45,7 @@ class ModuleCheckPlugin : Plugin<Project> {
 
     rules
       .onEach { rule ->
-        target.tasks.register("moduleCheck${rule.id}", DynamicModuleCheckTask::class, rule)
+        target.tasks.register("moduleCheck${rule.id}", DynamicModuleCheckWorkerTask::class, rule)
       }
 
     target.tasks.register("moduleCheck", ModuleCheckAllTask::class.java, rules)
@@ -53,6 +55,10 @@ class ModuleCheckPlugin : Plugin<Project> {
 abstract class DynamicModuleCheckTask<T : Finding> @Inject constructor(
   val rule: ModuleCheckRule<T>
 ) : ModuleCheckTask() {
+
+  interface Thing : WorkParameters {
+    val arg: Property<String>
+  }
 
   init {
     description = rule.description
@@ -64,3 +70,4 @@ abstract class DynamicModuleCheckTask<T : Finding> @Inject constructor(
     }
   }
 }
+

@@ -37,6 +37,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.resolve.BindingContext
 import java.io.File
+import java.io.Serializable
 import java.util.concurrent.*
 
 fun Project.project2() =
@@ -48,7 +49,7 @@ fun Project.project2() =
 
 class Project2Gradle private constructor(
   private val project: Project
-) : Project2 {
+) : Project2, Serializable {
   override val path: String get() = project.path
   override val rootProject: Project2 by lazy { Project2Gradle(project.rootProject) }
   override val allprojects: List<Project2> by lazy {
