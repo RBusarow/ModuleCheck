@@ -16,18 +16,24 @@
 package modulecheck.core
 
 import modulecheck.api.*
-import modulecheck.api.Config.*
 import modulecheck.api.Finding.Position
 import modulecheck.api.psi.PsiElementWithSurroundingText
 import modulecheck.core.files.KotlinFile
 import modulecheck.core.files.XmlFile
-import modulecheck.core.internal.*
+import modulecheck.core.internal.existingFiles
+import modulecheck.core.internal.files
+import modulecheck.core.internal.jvmFiles
 import modulecheck.core.kapt.KaptParser
-import modulecheck.core.parser.*
+import modulecheck.core.parser.DependencyParser
+import modulecheck.core.parser.OvershotParser
+import modulecheck.core.parser.RedundantParser
+import modulecheck.core.parser.UnusedParser
 import modulecheck.core.parser.android.AndroidManifestParser
 import modulecheck.core.parser.android.AndroidResourceParser
-import modulecheck.psi.*
-import modulecheck.psi.internal.*
+import modulecheck.core.parser.android.existsOrNull
+import modulecheck.psi.DslBlockVisitor
+import modulecheck.psi.ProjectDependencyDeclarationVisitor
+import modulecheck.psi.internal.asKtsFileOrNull
 import org.jetbrains.kotlin.psi.KtCallExpression
 import java.io.File
 import java.util.concurrent.*
@@ -69,10 +75,14 @@ class MCP private constructor(
     .mainLayoutRootOrNull()
     ?.walkTopDown()
     ?.files()
+    ?.existingFiles()
     .orEmpty()
     .map { XmlFile.LayoutFile(it) }
 
-  val androidTestImports = androidTestFiles.flatMap { jvmFile -> jvmFile.imports }.toSet()
+  val androidTestImports by lazy {
+    androidTestFiles
+      .flatMap { jvmFile -> jvmFile.imports }.toSet()
+  }
 
   val androidTestExtraPossibleReferences by lazy {
     androidTestFiles
@@ -110,11 +120,11 @@ class MCP private constructor(
 
   val androidPackageOrNull by lazy {
 
-    val manifest = File("${project.srcRoot}/main/AndroidManifest.xml")
-
-    if (!manifest.exists()) return@lazy null
-
-    AndroidManifestParser.parse(manifest)["package"]
+    File("${project.srcRoot}/main/AndroidManifest.xml")
+      .existsOrNull()
+      ?.let { manifest ->
+        AndroidManifestParser.parse(manifest)["package"]
+      }
   }
 
   val mainDeclarations by lazy {
@@ -161,7 +171,8 @@ class MCP private constructor(
   fun dependents() = cache
     .values
     .filter {
-      it.dependencies.all()
+      it.dependencies
+        .all()
         .any { dep -> dep.project == this.project }
     }
 

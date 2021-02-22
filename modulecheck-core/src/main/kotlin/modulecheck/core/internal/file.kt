@@ -19,16 +19,21 @@ import modulecheck.core.files.JavaFile
 import modulecheck.core.files.KotlinFile
 import modulecheck.psi.internal.asKtFile
 import modulecheck.psi.internal.asKtFileOrNull
+import org.gradle.api.file.FileCollection
 import org.jetbrains.kotlin.incremental.isJavaFile
 import org.jetbrains.kotlin.incremental.isKotlinFile
 import org.jetbrains.kotlin.resolve.BindingContext
 import java.io.File
 
-fun Sequence<File>.ktFiles() = filter { it.isFile }
+fun Iterable<File>.existingFiles() = filter { it.exists() }
+fun Sequence<File>.existingFiles() = filter { it.exists() }
+fun Sequence<File>.ktFiles() = existingFiles()
+  .filter { it.isFile }
   .mapNotNull { it.asKtFileOrNull() }
 
 fun File.jvmFiles(bindingContext: BindingContext) = walkTopDown()
   .files()
+  .existingFiles()
   .mapNotNull { file ->
     when {
       file.isKotlinFile(listOf("kt")) -> {
@@ -48,3 +53,5 @@ fun Collection<File>.jvmFiles(
 
 fun FileTreeWalk.dirs(): Sequence<File> = asSequence().filter { it.isDirectory }
 fun FileTreeWalk.files(): Sequence<File> = asSequence().filter { it.isFile }
+
+fun FileCollection.existingFiles() = filter { it.exists() }

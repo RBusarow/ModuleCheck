@@ -18,7 +18,6 @@ package modulecheck.core.files
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.ImportDeclaration
 import com.github.javaparser.ast.Node
-import com.github.javaparser.ast.NodeList
 import com.github.javaparser.ast.body.TypeDeclaration
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import modulecheck.api.JvmFile
@@ -30,7 +29,7 @@ class JavaFile(val file: File) : JvmFile() {
 
   data class ParsedFile(
     val packageFqName: String,
-    val imports: NodeList<ImportDeclaration>,
+    val imports: List<ImportDeclaration>,
     val classOrInterfaceTypes: Set<ClassOrInterfaceType>,
     val typeDeclarations: Set<TypeDeclaration<*>>
   )
@@ -55,7 +54,7 @@ class JavaFile(val file: File) : JvmFile() {
 
     ParsedFile(
       packageFqName = unit.packageDeclaration.get().nameAsString,
-      imports = unit.imports,
+      imports = unit.imports?.toList().orEmpty(),
       classOrInterfaceTypes = classOrInterfaceTypes,
       typeDeclarations = typeDeclarations
     )

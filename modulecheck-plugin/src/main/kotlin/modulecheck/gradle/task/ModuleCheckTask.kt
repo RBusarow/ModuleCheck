@@ -22,7 +22,6 @@ import modulecheck.api.settings.ModuleCheckExtension
 import modulecheck.gradle.internal.Output
 import modulecheck.gradle.project2
 import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.getByType
@@ -53,9 +52,9 @@ abstract class ModuleCheckTask : DefaultTask() {
     }
       .finish()
 
-    if (numIssues > 0) {
-      throw GradleException("ModuleCheck found $numIssues issues which could not be fixed.")
-    }
+    // if (numIssues > 0) {
+    //   throw GradleException("ModuleCheck found $numIssues issues which could not be fixed.")
+    // }
   }
 
   abstract fun List<Project2>.getFindings(): List<Finding>

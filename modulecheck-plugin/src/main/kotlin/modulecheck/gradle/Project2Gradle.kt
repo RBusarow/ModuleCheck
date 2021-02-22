@@ -18,10 +18,10 @@ package modulecheck.gradle
 import com.android.build.gradle.TestedExtension
 import com.squareup.anvil.plugin.AnvilExtension
 import modulecheck.api.*
+import modulecheck.core.internal.existingFiles
 import modulecheck.core.internal.jvmFiles
 import modulecheck.core.kapt.KAPT_PLUGIN_ID
 import modulecheck.core.kapt.KaptParser
-import modulecheck.gradle.internal.existingFiles
 import modulecheck.gradle.internal.ktFiles
 import modulecheck.psi.*
 import modulecheck.psi.internal.*

@@ -23,7 +23,8 @@ import javax.inject.Inject
 import kotlin.reflect.full.declaredMemberProperties
 
 abstract class ModuleCheckAllTask @Inject constructor(
-  private val rules: List<ModuleCheckRule<Finding>>
+  private val rules: List<ModuleCheckRule<Finding>>,
+  val findings: MutableList<Finding>
 ) : ModuleCheckTask() {
 
   @Suppress("LongMethod", "ComplexMethod")
