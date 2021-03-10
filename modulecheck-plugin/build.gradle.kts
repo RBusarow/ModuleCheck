@@ -15,7 +15,7 @@
 
 plugins {
   javaLibrary
-  id("com.gradle.plugin-publish") version "0.12.0"
+  id("com.gradle.plugin-publish") version "0.13.0"
   id("java-gradle-plugin")
   `kotlin-dsl`
   `maven-publish`
@@ -28,8 +28,8 @@ kotlinDslPluginOptions {
 dependencies {
   compileOnly(gradleApi())
 
-  implementation(BuildPlugins.anvil)
-  implementation(BuildPlugins.androidGradlePlugin)
+  compileOnly(BuildPlugins.anvil)
+  compileOnly(BuildPlugins.androidGradlePlugin)
   implementation(Libs.Kotlin.compiler)
   implementation(Libs.Kotlin.gradlePlugin)
   implementation(Libs.Kotlin.reflect)
@@ -41,6 +41,8 @@ dependencies {
   implementation(project(path = ":modulecheck-core"))
   implementation(project(path = ":modulecheck-psi"))
 
+  constraints { implementation(Libs.Kotlin.reflect) }
+
   testImplementation(Libs.JUnit.api)
   testImplementation(Libs.JUnit.engine)
   testImplementation(Libs.JUnit.params)
@@ -50,6 +52,7 @@ dependencies {
   testImplementation(Libs.RickBusarow.Hermit.core)
   testImplementation(Libs.RickBusarow.Hermit.junit5)
 
+  testImplementation(project(path = ":modulecheck-internal-testing"))
   testImplementation(project(path = ":modulecheck-specs"))
 }
 
