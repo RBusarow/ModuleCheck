@@ -20,6 +20,7 @@ import modulecheck.api.Project2
 import modulecheck.core.rule.ModuleCheckRule
 import modulecheck.gradle.task.ModuleCheckTask
 import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Internal
 import org.gradle.kotlin.dsl.submit
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
@@ -29,8 +30,8 @@ import javax.inject.Inject
 
 @Suppress("UnstableApiUsage")
 abstract class DynamicModuleCheckWorkerTask @Inject constructor(
-  val rule: ModuleCheckRule<Finding>,
-  val workerExecutor: WorkerExecutor
+  @Internal val rule: ModuleCheckRule<Finding>,
+  @Internal val workerExecutor: WorkerExecutor
 ) : ModuleCheckTask() {
 
   init {
