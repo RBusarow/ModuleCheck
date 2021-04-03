@@ -16,20 +16,21 @@
 package modulecheck.core.parser.android
 
 import groovy.util.Node
-import groovy.xml.XmlParser
+import modulecheck.api.parser
 import java.io.File
 
 object AndroidManifestParser {
-  private val parser = XmlParser()
 
-  fun parse(file: File) = parser.parse(file)
-    .breadthFirst()
-    .filterIsInstance<Node>()
-    .mapNotNull { it.attributes() }
-    .flatMap { it.entries }
-    .filterNotNull()
-    // .flatMap { it.values.mapNotNull { value -> value } }
-    .filterIsInstance<MutableMap.MutableEntry<String, String>>()
-    .map { it.key to it.value }
-    .toMap()
+  fun parse(file: File) = synchronized(parser) {
+    parser.parse(file)
+      .breadthFirst()
+      .filterIsInstance<Node>()
+      .mapNotNull { it.attributes() }
+      .flatMap { it.entries }
+      .filterNotNull()
+      // .flatMap { it.values.mapNotNull { value -> value } }
+      .filterIsInstance<MutableMap.MutableEntry<String, String>>()
+      .map { it.key to it.value }
+      .toMap()
+  }
 }

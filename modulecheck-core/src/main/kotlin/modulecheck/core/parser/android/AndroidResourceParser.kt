@@ -16,12 +16,11 @@
 package modulecheck.core.parser.android
 
 import groovy.util.Node
-import groovy.xml.XmlParser
+import modulecheck.api.parser
 import org.jetbrains.kotlin.utils.addToStdlib.cast
 import java.io.File
 
 object AndroidResourceParser {
-  private val parser = XmlParser()
 
   fun parseFile(resDir: File): Set<String> {
     val values = mutableSetOf<AndroidResource>()
@@ -32,22 +31,24 @@ object AndroidResourceParser {
       .filter { it.extension == "xml" }
 
       .onEach { file ->
-        val parsed = parser.parse(file)
 
-        if (parsed.name() == "resources") {
-          val t = parsed.children().cast<List<Node>>()
+        synchronized(parser) {
+          val parsed = parser.parse(file)
 
-          t.forEach { node ->
+          if (parsed.name() == "resources") {
+            val t = parsed.children().cast<List<Node>>()
 
-            AndroidResource.fromValuePair(
-              node.name()
-                .toString(),
-              node.attributes().values.first()?.toString() ?: ""
-            )?.also { values.add(it) }
+            t.forEach { node ->
+
+              AndroidResource.fromValuePair(
+                node.name()
+                  .toString(),
+                node.attributes().values.first()?.toString() ?: ""
+              )?.also { values.add(it) }
+            }
           }
         }
       }
-
       .mapNotNull { file -> AndroidResource.fromFile(file) }
       .toSet() + values
 

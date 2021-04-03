@@ -84,24 +84,13 @@ abstract class RuleExecutor : WorkAction<RuleHolder> {
 
   override fun execute() {
 
-    try {
-      val project = projects[parameters.projectPath.get()]!!
-      val rule = rules[parameters.ruleId.get()]!!
+    val project = projects[parameters.projectPath.get()]!!
+    val rule = rules[parameters.ruleId.get()]!!
 
-      println(4)
+    val found = rule.check(project)
 
-      val found = rule.check(project)
-
-      println(5)
-
-      synchronized(findings) {
-        println(6)
-        findings.addAll(found)
-        println(7)
-      }
-      println(8)
-    } catch (e: Exception) {
-      println("caught --> $e")
+    synchronized(findings) {
+      findings.addAll(found)
     }
   }
 }
