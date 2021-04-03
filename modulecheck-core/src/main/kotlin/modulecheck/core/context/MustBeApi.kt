@@ -15,13 +15,9 @@
 
 package modulecheck.core.context
 
-import modulecheck.api.ConfiguredProjectDependency
-import modulecheck.api.Project2
-import modulecheck.api.context.Declarations
-import modulecheck.api.context.ProjectContext
-import modulecheck.api.context.jvmFilesForSourceSetName
+import modulecheck.api.*
+import modulecheck.api.context.*
 import modulecheck.api.files.KotlinFile
-import modulecheck.api.main
 
 data class MustBeApi(
   internal val delegate: Set<ConfiguredProjectDependency>
@@ -33,29 +29,52 @@ data class MustBeApi(
 
   companion object Key : ProjectContext.Key<MustBeApi> {
     override operator fun invoke(project: Project2): MustBeApi {
-      val noIdeaWhereTheyComeFrom = project.jvmFilesForSourceSetName("main")
+      val mainDependencies = project.allPublicClassPathDependencyDeclarations()
+
+      val mergedScopeNames = project
+        .anvilScopeMerges
+        .values
+        .flatMap { it.keys }
+
+      val scopeContributingProjects = mainDependencies
+        .filter { (_, projectDependency) ->
+
+          val contributions =
+            projectDependency.anvilScopeContributionsForSourceSetName(SourceSetName.MAIN)
+
+          mergedScopeNames.any { contributions.containsKey(it) }
+        }
+        .filterNot { it.configurationName == ConfigurationName.api }
+
+      val declarationsInProject = project[Declarations][SourceSetName.MAIN]
+        .orEmpty()
+
+      val noIdeaWhereTheyComeFrom = project
+        .jvmFilesForSourceSetName(SourceSetName.MAIN)
         .filterIsInstance<KotlinFile>()
         .flatMap { kotlinFile ->
+
           kotlinFile
             .apiReferences
-            .filterNot { it in project[Declarations]["main"].orEmpty() }
+            .filterNot { it in declarationsInProject }
         }.toSet()
 
-      val api = project
-        .projectDependencies
-        .value
-        .main()
-        .filterNot {
-          it in project.projectDependencies
-            .value["api"]
+      val api = mainDependencies
+        .asSequence()
+        .filterNot { it.configurationName == ConfigurationName.api }
+        .plus(scopeContributingProjects)
+        .filterNot { cpd ->
+          cpd in project.projectDependencies
+            .value[ConfigurationName.api]
             .orEmpty()
         }
         .filter { cpp ->
           cpp
-            .project[Declarations]["main"]
+            .project[Declarations][SourceSetName.MAIN]
             .orEmpty()
             .any { declared ->
-              declared in noIdeaWhereTheyComeFrom
+              declared in noIdeaWhereTheyComeFrom ||
+                declared in project.imports[SourceSetName.MAIN].orEmpty()
             }
         }
         .toSet()

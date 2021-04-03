@@ -29,8 +29,8 @@ class UnusedDependencyRule(
   override val description = "Finds project dependencies which aren't used in the declaring module"
 
   override fun check(project: Project2): List<UnusedDependency> {
-    return project [UnusedDependencies]
+    return project[UnusedDependencies]
       .all()
-      .distinctBy { it.positionOrNull() }
+      .distinctBy { it.elementOrNull() }
   }
 }

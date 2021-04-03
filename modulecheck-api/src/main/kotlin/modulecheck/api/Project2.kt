@@ -15,6 +15,7 @@
 
 package modulecheck.api
 
+import modulecheck.api.anvil.AnvilGradlePlugin
 import modulecheck.api.context.*
 import net.swiftzer.semver.SemVer
 import java.io.File
@@ -32,7 +33,7 @@ interface Project2 :
   val projectDir: File
   val buildFile: File
 
-  val configurations: Map<String, Config>
+  val configurations: Map<ConfigurationName, Config>
 
   val projectDependencies: Lazy<Map<ConfigurationName, List<ConfiguredProjectDependency>>>
 
@@ -40,9 +41,6 @@ interface Project2 :
 
   val sourceSets: Map<SourceSetName, SourceSet>
   val anvilGradlePlugin: AnvilGradlePlugin?
-
-  fun allPublicClassPathDependencyDeclarations(): Set<ConfiguredProjectDependency>
-  fun sourceOf(dependencyProject: ConfiguredProjectDependency, apiOnly: Boolean = false): Project2?
 }
 
 fun Project2.isAndroid(): Boolean {
@@ -52,6 +50,54 @@ fun Project2.isAndroid(): Boolean {
   return this is AndroidProject2
 }
 
+fun Project2.allPublicClassPathDependencyDeclarations(
+  includePrivate: Boolean = true
+): Set<ConfiguredProjectDependency> {
+  val configurationName = if (includePrivate) {
+    projectDependencies
+      .value[ConfigurationName.implementation].orEmpty()
+  } else {
+    emptyList()
+  }
+
+  val sub = projectDependencies
+    .value[ConfigurationName.api]
+    .orEmpty()
+    .plus(configurationName)
+    .flatMap {
+      it
+        .project
+        .allPublicClassPathDependencyDeclarations(false)
+    }
+
+  return projectDependencies
+    .value[ConfigurationName.api]
+    .orEmpty()
+    .plus(sub)
+    .toSet()
+}
+
+fun Project2.sourceOf(
+  dependencyProject: ConfiguredProjectDependency,
+  apiOnly: Boolean = false
+): Project2? {
+  val toCheck = if (apiOnly) {
+    projectDependencies
+      .value["api".asConfigurationName()]
+      .orEmpty()
+  } else {
+    projectDependencies
+      .value
+      .main()
+  }
+
+  if (dependencyProject in toCheck) return this
+
+  return toCheck.firstOrNull {
+    it == dependencyProject || it.project.sourceOf(dependencyProject, true) != null
+  }?.project
+}
+
 interface AndroidProject2 : Project2 {
   val agpVersion: SemVer
   val androidResourcesEnabled: Boolean
@@ -59,8 +105,3 @@ interface AndroidProject2 : Project2 {
   val resourceFiles: Set<File>
   val androidPackageOrNull: String?
 }
-
-data class AnvilGradlePlugin(
-  val version: SemVer,
-  val generateDaggerFactories: Boolean
-)

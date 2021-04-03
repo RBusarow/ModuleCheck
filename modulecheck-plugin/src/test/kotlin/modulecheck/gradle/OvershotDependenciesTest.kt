@@ -19,6 +19,7 @@ import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.TypeSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import modulecheck.specs.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -63,7 +64,7 @@ class OvershotDependenciesTest : BaseTest() {
       addSrcSpec(
         ProjectSrcSpec(Path.of("src/main/kotlin")) {
           addFileSpec(
-            FileSpec.builder("com.example.app", "MyApp.kt")
+            FileSpec.builder("com.example.app", "MyApp")
               .addImport("com.example.lib1", "Lib1Class")
               .addImport("com.example.lib2", "Lib2Class")
               .build()
@@ -165,13 +166,10 @@ class OvershotDependenciesTest : BaseTest() {
       }
         .writeIn(testProjectDir.toPath())
 
-      shouldFailWithMessage(
-        "moduleCheckOvershotDependency"
-      ) {
-        it.contains("ModuleCheck found 2 issues") shouldBe true
-        it.contains("> ModuleCheck found 2 issues which were not auto-corrected.") shouldBe true
-        it.contains("app/build.gradle.kts: (6, 3):  over-shot: :lib-1 from: :lib-3") shouldBe true
-        it.contains("app/build.gradle.kts: (6, 3):  over-shot: :lib-2 from: :lib-3") shouldBe true
+      shouldFailWithMessage("moduleCheckOvershotDependency") {
+        it shouldContain "> ModuleCheck found 2 issues which were not auto-corrected."
+        it shouldContain "app/build.gradle.kts: (6, 3):  over-shot: :lib-1 from: :lib-3"
+        it shouldContain "app/build.gradle.kts: (6, 3):  over-shot: :lib-2 from: :lib-3"
       }
     }
   }
@@ -194,7 +192,7 @@ class OvershotDependenciesTest : BaseTest() {
           addSrcSpec(
             ProjectSrcSpec(Path.of("src/main/kotlin")) {
               addFileSpec(
-                FileSpec.builder("com.example.app", "MyApp.kt")
+                FileSpec.builder("com.example.app", "MyApp")
                   .addImport("com.example.lib1", "Lib1Class")
                   .addImport("com.example.lib2", "Lib2Class")
                   .build()
@@ -265,7 +263,7 @@ class OvershotDependenciesTest : BaseTest() {
           addSrcSpec(
             ProjectSrcSpec(Path.of("src/main/kotlin")) {
               addFileSpec(
-                FileSpec.builder("com.example.app", "MyApp.kt")
+                FileSpec.builder("com.example.app", "MyApp")
                   .addImport("com.example.lib3", "Lib3Class")
                   .build()
               )
@@ -311,7 +309,7 @@ class OvershotDependenciesTest : BaseTest() {
           addSrcSpec(
             ProjectSrcSpec(Path.of("src/main/kotlin")) {
               addFileSpec(
-                FileSpec.builder("com.example.app", "MyApp.kt")
+                FileSpec.builder("com.example.app", "MyApp")
                   .addImport("com.example.lib1", "Lib1Class")
                   .addImport("com.example.lib2", "Lib2Class")
                   .build()
@@ -377,7 +375,7 @@ fun jvmSubProject(
       addSrcSpec(
         ProjectSrcSpec(Path.of("src/main/kotlin")) {
           addFileSpec(
-            FileSpec.builder(fq.packageName, fq.simpleName + ".kt")
+            FileSpec.builder(fq.packageName, fq.simpleName)
               .addType(TypeSpec.classBuilder(fq.simpleName).build())
               .build()
           )

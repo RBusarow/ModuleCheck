@@ -17,10 +17,16 @@ package modulecheck.api
 
 import java.io.File
 
-typealias SourceSetName = String
+data class SourceSetName(val value: String) {
+  companion object {
+    val MAIN = SourceSetName("main")
+  }
+}
+
+fun String.toSourceSetName(): SourceSetName = SourceSetName(this)
 
 data class SourceSet(
-  val name: String,
+  val name: SourceSetName,
   val classpathFiles: Set<File> = emptySet(),
   val outputFiles: Set<File> = emptySet(),
   val jvmFiles: Set<File> = emptySet(),

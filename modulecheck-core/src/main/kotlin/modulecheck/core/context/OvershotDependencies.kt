@@ -15,10 +15,8 @@
 
 package modulecheck.core.context
 
-import modulecheck.api.ConfigurationName
-import modulecheck.api.Project2
+import modulecheck.api.*
 import modulecheck.api.context.ProjectContext
-import modulecheck.api.main
 import modulecheck.core.internal.uses
 import modulecheck.core.overshot.OvershotDependencyFinding
 import java.util.concurrent.ConcurrentHashMap
@@ -44,7 +42,7 @@ data class OvershotDependencies(
           cpp
             .project
             .projectDependencies
-            .value["api"]
+            .value["api".asConfigurationName()]
             .orEmpty()
         }.toSet()
 
@@ -76,7 +74,7 @@ data class OvershotDependencies(
             .main()
             .firstOrNull { it.project == source }
             ?.configurationName
-            ?: "api"
+            ?: "api".asConfigurationName()
 
           OvershotDependencyFinding(
             dependentPath = project.path,

@@ -18,6 +18,7 @@ package modulecheck.testing
 import hermit.test.junit.HermitJUnit5
 import hermit.test.resets
 import modulecheck.api.*
+import modulecheck.api.anvil.AnvilGradlePlugin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInfo
@@ -39,7 +40,7 @@ abstract class ContextTest : HermitJUnit5(), DynamicTests {
     gradlePath: String = ":",
     projectDir: File = this@ContextTest.projectDir,
     buildFile: File = File(projectDir, "build.gradle.kts"),
-    configurations: Map<String, Config> = emptyMap(),
+    configurations: Map<ConfigurationName, Config> = emptyMap(),
     projectDependencies: Lazy<Map<ConfigurationName, List<ConfiguredProjectDependency>>> = lazy { emptyMap() },
     hasKapt: Boolean = false,
     sourceSets: Map<SourceSetName, SourceSet> = emptyMap(),

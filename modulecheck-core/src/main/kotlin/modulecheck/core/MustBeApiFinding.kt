@@ -28,11 +28,11 @@ data class MustBeApiFinding(
 
   override val dependencyIdentifier = dependencyProject.path
 
-  override fun fix(): Boolean {
+  override fun fix(): Boolean = synchronized(buildFile) {
     val element = elementOrNull() ?: return false
 
     val oldText = element.toString()
-    val newText = oldText.replace(configurationName, "api")
+    val newText = oldText.replace(configurationName.value, "api")
 
     val buildFileText = buildFile.readText()
 

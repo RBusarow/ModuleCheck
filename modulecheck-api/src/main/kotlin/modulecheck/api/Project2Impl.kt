@@ -15,6 +15,7 @@
 
 package modulecheck.api
 
+import modulecheck.api.anvil.AnvilGradlePlugin
 import modulecheck.api.context.ProjectContext
 import modulecheck.api.context.ProjectContextImpl
 import java.io.File
@@ -24,8 +25,8 @@ data class Project2Impl(
   override val path: String,
   override val projectDir: File,
   override val buildFile: File,
-  override val configurations: Map<String, Config>,
-  override val projectDependencies:  Lazy<Map<ConfigurationName, List<ConfiguredProjectDependency>>>,
+  override val configurations: Map<ConfigurationName, Config>,
+  override val projectDependencies: Lazy<Map<ConfigurationName, List<ConfiguredProjectDependency>>>,
   override val hasKapt: Boolean,
   override val sourceSets: Map<SourceSetName, SourceSet>,
   override val projectCache: ConcurrentHashMap<String, Project2>,
@@ -36,44 +37,6 @@ data class Project2Impl(
 
   override fun <E : ProjectContext.Element> get(key: ProjectContext.Key<E>): E {
     return context[key]
-  }
-
-  override fun allPublicClassPathDependencyDeclarations(): Set<ConfiguredProjectDependency> {
-    val sub = projectDependencies
-      .value["api"]
-      .orEmpty()
-      .flatMap {
-        it
-          .project
-          .allPublicClassPathDependencyDeclarations()
-      }
-
-    return projectDependencies
-      .value["api"]
-      .orEmpty()
-      .plus(sub)
-      .toSet()
-  }
-
-  override fun sourceOf(
-    dependencyProject: ConfiguredProjectDependency,
-    apiOnly: Boolean
-  ): Project2? {
-    val toCheck = if (apiOnly) {
-      projectDependencies
-        .value["api"]
-        .orEmpty()
-    } else {
-      projectDependencies
-        .value
-        .main()
-    }
-
-    if (dependencyProject in toCheck) return this
-
-    return toCheck.firstOrNull {
-      it == dependencyProject || it.project.sourceOf(dependencyProject, true) != null
-    }?.project
   }
 
   override fun compareTo(other: Project2): Int = path.compareTo(other.path)
@@ -89,5 +52,9 @@ data class Project2Impl(
 
   override fun hashCode(): Int {
     return path.hashCode()
+  }
+
+  override fun toString(): String {
+    return "Project2Impl(path='$path')"
   }
 }

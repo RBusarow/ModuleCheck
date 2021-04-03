@@ -13,8 +13,26 @@
  * limitations under the License.
  */
 
-package modulecheck.api.context
+package modulecheck.api.anvil
 
-import modulecheck.testing.ContextTest
+import modulecheck.api.context.DeclarationName
+import modulecheck.api.context.ImportName
+import net.swiftzer.semver.SemVer
 
-internal class JvmFilesTest : ContextTest()
+data class AnvilGradlePlugin(
+  val version: SemVer,
+  val generateDaggerFactories: Boolean
+)
+
+data class AnvilAnnotatedType(
+  val contributedTypeDeclaration: DeclarationName,
+  val contributedScope: AnvilScopeName
+)
+
+data class RawAnvilAnnotatedType(
+  val declarationName: DeclarationName,
+  val anvilScopeNameEntry: AnvilScopeNameEntry
+)
+
+data class AnvilScopeName(val fqName: ImportName)
+data class AnvilScopeNameEntry(val name: ImportName)

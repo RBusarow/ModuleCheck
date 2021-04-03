@@ -21,6 +21,7 @@ import com.android.build.gradle.api.BaseVariant
 import com.android.build.gradle.internal.api.TestedVariant
 import com.squareup.anvil.plugin.AnvilExtension
 import modulecheck.api.*
+import modulecheck.api.anvil.AnvilGradlePlugin
 import modulecheck.core.parser.android.AndroidManifestParser
 import modulecheck.core.rule.KAPT_PLUGIN_ID
 import modulecheck.gradle.internal.existingFiles
@@ -30,6 +31,7 @@ import modulecheck.psi.ExternalDependencyDeclarationVisitor
 import modulecheck.psi.internal.asKtFile
 import net.swiftzer.semver.SemVer
 import org.gradle.api.DomainObjectSet
+import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.internal.HasConvention
 import org.gradle.api.plugins.JavaPluginConvention
@@ -69,22 +71,19 @@ class GradleProjectProvider(
     val sourceSets = gradleProject
       .jvmSourceSets()
 
-    val isAndroid = gradleProject
+    val testedExtension = gradleProject
       .extensions
-      .findByType(TestedExtension::class) != null
+      .findByType<LibraryExtension>()
+      ?: gradleProject
+        .extensions
+        .findByType<AppExtension>()
+
+    val isAndroid = testedExtension != null
 
     val libraryExtension by lazy(NONE) {
       gradleProject
         .extensions
         .findByType<LibraryExtension>()
-    }
-    val testedExtension by lazy(NONE) {
-      gradleProject
-        .extensions
-        .findByType<LibraryExtension>()
-        ?: gradleProject
-          .extensions
-          .findByType<AppExtension>()
     }
 
     return if (isAndroid) {
@@ -104,68 +103,89 @@ class GradleProjectProvider(
         resourceFiles = gradleProject.androidResourceFiles(),
         androidPackageOrNull = gradleProject.androidPackageOrNull()
       )
-    } else Project2Impl(
-      path = path,
-      projectDir = gradleProject.projectDir,
-      buildFile = gradleProject.buildFile,
-      configurations = configurations,
-      projectDependencies = projectDependencies,
-      hasKapt = hasKapt,
-      sourceSets = sourceSets,
-      projectCache = projectCache,
-      anvilGradlePlugin = gradleProject.anvilGradlePluginOrNull()
-    )
+    } else {
+      Project2Impl(
+        path = path,
+        projectDir = gradleProject.projectDir,
+        buildFile = gradleProject.buildFile,
+        configurations = configurations,
+        projectDependencies = projectDependencies,
+        hasKapt = hasKapt,
+        sourceSets = sourceSets,
+        projectCache = projectCache,
+        anvilGradlePlugin = gradleProject.anvilGradlePluginOrNull()
+      )
+    }
   }
 
-  private fun GradleProject.configurations() = configurations
-    .associate { configuration ->
+  private fun GradleProject.configurations(): Map<ConfigurationName, Config> {
+    val externalDependencyCache = mutableMapOf<String, Set<ExternalDependency>>()
 
-      val external = configuration
-        .dependencies
-        .filterNot { it is ProjectDependency }
-        .map { dep ->
-          val psi = lazy psiLazy@{
-            val parsed = DslBlockVisitor("dependencies")
-              .parse(buildFile.asKtFile())
-              ?: return@psiLazy null
+    fun Configuration.foldConfigs(): Set<Configuration> {
+      return extendsFrom + extendsFrom.flatMap { it.foldConfigs() }
+    }
 
-            parsed
-              .elements
-              .firstOrNull { element ->
+    fun Configuration.toConfig(): Config {
+      val external = externalDependencyCache.getOrPut(name) {
+        externalDependencies(this)
+      }
 
-                val p = ExternalDependencyDeclarationVisitor(
-                  configuration = configuration.name,
-                  group = dep.group,
-                  name = dep.name,
-                  version = dep.version
-                )
-
-                p.find(element.psiElement as KtCallExpression)
-              }
-          }
-          ExternalDependency(
-            configurationName = configuration.name,
-            group = dep.group,
-            moduleName = dep.name,
-            version = dep.version,
-            psiElementWithSurroundingText = psi
-          )
-        }
+      val configs = foldConfigs()
+        .map { it.toConfig() }
         .toSet()
 
-      val config = Config(configuration.name, external)
-
-      configuration.name to config
+      return Config(name.asConfigurationName(), external, configs)
     }
+    return configurations
+      .associate { configuration ->
+
+        val config = configuration.toConfig()
+
+        configuration.name.asConfigurationName() to config
+      }
+  }
+
+  private fun GradleProject.externalDependencies(configuration: Configuration) =
+    configuration.dependencies
+      .filterNot { it is ProjectDependency }
+      .map { dep ->
+        val psi = lazy psiLazy@{
+          val parsed = DslBlockVisitor("dependencies")
+            .parse(buildFile.asKtFile())
+            ?: return@psiLazy null
+
+          parsed
+            .elements
+            .firstOrNull { element ->
+
+              val p = ExternalDependencyDeclarationVisitor(
+                configuration = configuration.name,
+                group = dep.group,
+                name = dep.name,
+                version = dep.version
+              )
+
+              p.find(element.psiElement as KtCallExpression)
+            }
+        }
+        ExternalDependency(
+          configurationName = configuration.name.asConfigurationName(),
+          group = dep.group,
+          moduleName = dep.name,
+          version = dep.version,
+          psiElementWithSurroundingText = psi
+        )
+      }
+      .toSet()
 
   private fun GradleProject.projectDependencies(): Lazy<Map<ConfigurationName, List<ConfiguredProjectDependency>>> =
     lazy {
       configurations
         .map { config ->
-          config.name to config.dependencies.withType(ProjectDependency::class.java)
+          config.name.asConfigurationName() to config.dependencies.withType(ProjectDependency::class.java)
             .map {
               ConfiguredProjectDependency(
-                configurationName = config.name,
+                configurationName = config.name.asConfigurationName(),
                 project = get(it.dependencyProject.path)
               )
             }
@@ -173,7 +193,7 @@ class GradleProjectProvider(
         .toMap()
     }
 
-  private fun GradleProject.jvmSourceSets(): Map<String, SourceSet> = convention
+  private fun GradleProject.jvmSourceSets(): Map<SourceSetName, SourceSet> = convention
     .findPlugin(JavaPluginConvention::class)
     ?.sourceSets
     ?.map {
@@ -189,7 +209,7 @@ class GradleProjectProvider(
         ?: it.allJava.files
 
       SourceSet(
-        name = it.name,
+        name = it.name.toSourceSetName(),
         classpathFiles = it.compileClasspath.existingFiles().files,
         outputFiles = it.output.classesDirs.existingFiles().files,
         jvmFiles = jvmFiles,
@@ -251,7 +271,7 @@ class GradleProjectProvider(
       else -> emptyList()
     }
 
-  private fun GradleProject.androidSourceSets(): Map<String, SourceSet> {
+  private fun GradleProject.androidSourceSets(): Map<SourceSetName, SourceSet> {
     return extensions
       .findByType<BaseExtension>()
       ?.variants
@@ -282,14 +302,19 @@ class GradleProjectProvider(
             val resourceFiles = sourceProvider
               .resDirectories
               .flatMap { it.listFiles().orEmpty().toList() }
+              .flatMap { it.listFiles().orEmpty().toList() }
               .toSet()
 
             val layoutFiles = resourceFiles
-              .filter { it.isFile && it.path.contains("""/res/layouts.*/.*.xml""".toRegex()) }
+              .filter {
+                it.isFile && it.path
+                  .replace(File.separator, "/") // replace `\` from Windows paths with `/`.
+                  .contains("""/res/layout.*/.*.xml""".toRegex())
+              }
               .toSet()
 
             SourceSet(
-              name = sourceProvider.name,
+              name = sourceProvider.name.toSourceSetName(),
               classpathFiles = emptySet(),
               outputFiles = setOf(), // TODO
               jvmFiles = jvmFiles,

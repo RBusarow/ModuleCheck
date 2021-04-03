@@ -15,9 +15,7 @@
 
 package modulecheck.core.parser
 
-import modulecheck.api.ConfiguredProjectDependency
-import modulecheck.api.Project2
-import modulecheck.api.main
+import modulecheck.api.*
 import modulecheck.core.InheritedImplementationDependencyFinding
 import modulecheck.core.Parsed
 import modulecheck.core.internal.uses
@@ -44,16 +42,21 @@ object InheritedImplementationParser : Parser<InheritedImplementationDependencyF
       .map { overshot ->
 
         val source =
-          project.sourceOf(ConfiguredProjectDependency("api", overshot.project))
+          project.sourceOf(
+            ConfiguredProjectDependency(
+              "api".asConfigurationName(),
+              overshot.project
+            )
+          )
             ?: project.sourceOf(
-              ConfiguredProjectDependency("implementation", overshot.project)
+              ConfiguredProjectDependency(ConfigurationName.implementation, overshot.project)
             )
         val sourceConfig = project
           .projectDependencies
           .value
           .main()
           .firstOrNull { it.project == source }
-          ?.configurationName ?: "api"
+          ?.configurationName ?: "api".asConfigurationName()
 
         InheritedImplementationDependencyFinding(
           dependentPath = project.path,
@@ -64,17 +67,18 @@ object InheritedImplementationParser : Parser<InheritedImplementationDependencyF
           from = source
         )
       }
+      .filterNot { it.dependencyPath in mainDependenciesPaths }
       .groupBy { it.configurationName }
       .mapValues { it.value.toMutableSet() }
 
     return Parsed(
-      grouped.getOrDefault("androidTest", mutableSetOf()),
-      grouped.getOrDefault("api", mutableSetOf()),
-      grouped.getOrDefault("compileOnly", mutableSetOf()),
-      grouped.getOrDefault("implementation", mutableSetOf()),
-      grouped.getOrDefault("runtimeOnly", mutableSetOf()),
-      grouped.getOrDefault("testApi", mutableSetOf()),
-      grouped.getOrDefault("testImplementation", mutableSetOf())
+      grouped.getOrDefault("androidTest".asConfigurationName(), mutableSetOf()),
+      grouped.getOrDefault(ConfigurationName.api, mutableSetOf()),
+      grouped.getOrDefault(ConfigurationName.compileOnly, mutableSetOf()),
+      grouped.getOrDefault(ConfigurationName.implementation, mutableSetOf()),
+      grouped.getOrDefault(ConfigurationName.runtimeOnly, mutableSetOf()),
+      grouped.getOrDefault("testApi".asConfigurationName(), mutableSetOf()),
+      grouped.getOrDefault("testImplementation".asConfigurationName(), mutableSetOf())
     )
   }
 }
