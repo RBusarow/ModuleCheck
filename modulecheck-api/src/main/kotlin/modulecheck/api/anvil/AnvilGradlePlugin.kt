@@ -36,3 +36,50 @@ data class RawAnvilAnnotatedType(
 
 data class AnvilScopeName(val fqName: DeclarationName)
 data class AnvilScopeNameEntry(val name: ImportName)
+
+sealed class AnvilElement {
+  abstract val scopeName: AnvilScopeName
+  abstract val referencedDeclaration: DeclarationName
+
+  /**
+   * Added to Anvil using `@ContributesTo`.
+   *
+   * If the interface being annotated is used anywhere in the merged graph,
+   * then the module with the merged component must depend upon this contributed interface's module.
+   */
+  data class AnvilContributedComponent(
+    override val scopeName: AnvilScopeName,
+    override val referencedDeclaration: DeclarationName
+  ) : AnvilElement()
+
+  /**
+   * Added to Anvil using `@ContributesTo`.
+   *
+   * TODODOTODOEODODOTODODODODODOODD
+   */
+  data class AnvilContributedModule(
+    override val scopeName: AnvilScopeName,
+    override val referencedDeclaration: DeclarationName
+  ) : AnvilElement()
+
+  /**
+   * Added to Anvil using `@ContributesBinding`.
+   *
+   * If the bound type is used anywhere in the merged graph,
+   * then the module with the merged component must depend upon this contributed binding's module.
+   */
+  data class AnvilBinding(
+    override val scopeName: AnvilScopeName,
+    override val referencedDeclaration: DeclarationName
+  ) : AnvilElement()
+
+  /**
+   * Added to Anvil using `@ContributesMultibinding`.
+   *
+   * TODODOTODOEODODOTODODODODODOODD
+   */
+  data class AnvilMultiBinding(
+    override val scopeName: AnvilScopeName,
+    override val referencedDeclaration: DeclarationName
+  ) : AnvilElement()
+}
