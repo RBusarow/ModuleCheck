@@ -25,6 +25,8 @@ dependencies {
 
   implementation(libs.groovyXml)
 
+  implementation(libs.dagger)
+  implementation(libs.anvil.annotations)
   implementation(libs.androidGradlePlugin)
   implementation(libs.kotlinCompiler)
   implementation(libs.kotlinGradlePlugin)

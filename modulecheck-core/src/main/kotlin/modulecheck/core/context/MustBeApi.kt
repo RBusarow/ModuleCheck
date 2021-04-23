@@ -16,7 +16,12 @@
 package modulecheck.core.context
 
 import modulecheck.api.*
-import modulecheck.api.context.*
+import modulecheck.api.anvil.anvilScopeContributionsForSourceSetName
+import modulecheck.api.anvil.anvilScopeMerges
+import modulecheck.api.context.Declarations
+import modulecheck.api.context.ProjectContext
+import modulecheck.api.context.imports
+import modulecheck.api.context.jvmFilesForSourceSetName
 import modulecheck.api.files.KotlinFile
 import modulecheck.psi.asDeclaractionName
 

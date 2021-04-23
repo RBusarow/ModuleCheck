@@ -17,7 +17,11 @@ package modulecheck.core.internal
 
 import modulecheck.api.*
 import modulecheck.api.anvil.AnvilScopeName
-import modulecheck.api.context.*
+import modulecheck.api.anvil.anvilScopeContributionsForSourceSetName
+import modulecheck.api.anvil.anvilScopeMerges
+import modulecheck.api.context.Declarations
+import modulecheck.api.context.importsForSourceSetName
+import modulecheck.api.context.possibleReferencesForSourceSetName
 import modulecheck.core.android.androidResourceDeclarationsForSourceSetName
 import modulecheck.psi.DeclarationName
 

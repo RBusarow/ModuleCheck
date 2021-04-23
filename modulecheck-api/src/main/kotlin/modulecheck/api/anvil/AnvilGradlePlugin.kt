@@ -15,9 +15,18 @@
 
 package modulecheck.api.anvil
 
+import com.squareup.anvil.annotations.*
+import com.squareup.anvil.annotations.compat.MergeInterfaces
+import dagger.*
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import modulecheck.api.context.ImportName
 import modulecheck.psi.DeclarationName
 import net.swiftzer.semver.SemVer
+import org.jetbrains.kotlin.name.FqName
+import javax.inject.Inject
+import javax.inject.Qualifier
 
 data class AnvilGradlePlugin(
   val version: SemVer,
@@ -36,6 +45,28 @@ data class RawAnvilAnnotatedType(
 
 data class AnvilScopeName(val fqName: DeclarationName)
 data class AnvilScopeNameEntry(val name: ImportName)
+
+val anvilMergeComponentFqName = FqName(MergeComponent::class.java.canonicalName)
+val anvilMergeSubcomponentFqName = FqName(MergeSubcomponent::class.java.canonicalName)
+val anvilMergeInterfacesFqName = FqName(MergeInterfaces::class.java.canonicalName)
+val anvilContributesToFqName = FqName(ContributesTo::class.java.canonicalName)
+val anvilContributesBindingFqName = FqName(ContributesBinding::class.java.canonicalName)
+val anvilContributesMultibindingFqName = FqName(ContributesMultibinding::class.java.canonicalName)
+
+val daggerAssistedFactoryFqName = FqName(AssistedFactory::class.java.canonicalName)
+val daggerAssistedFqName = FqName(Assisted::class.java.canonicalName)
+val daggerAssistedInjectFqName = FqName(AssistedInject::class.java.canonicalName)
+val daggerBindsFqName = FqName(Binds::class.java.canonicalName)
+val daggerComponentFqName = FqName(Component::class.java.canonicalName)
+val daggerInjectFqName = FqName(Inject::class.java.canonicalName)
+val daggerLazyFqName = FqName(Lazy::class.java.canonicalName)
+val daggerMapKeyFqName = FqName(MapKey::class.java.canonicalName)
+val daggerModuleFqName = FqName(Module::class.java.canonicalName)
+val daggerProvidesFqName = FqName(Provides::class.java.canonicalName)
+val daggerQualifierFqName = FqName(Qualifier::class.java.canonicalName)
+val daggerSubcomponentFqName = FqName(Subcomponent::class.java.canonicalName)
+
+val injectFqName = FqName(Inject::class.java.canonicalName)
 
 sealed class AnvilElement {
   abstract val scopeName: AnvilScopeName
@@ -59,7 +90,8 @@ sealed class AnvilElement {
    */
   data class AnvilContributedModule(
     override val scopeName: AnvilScopeName,
-    override val referencedDeclaration: DeclarationName
+    override val referencedDeclaration: DeclarationName,
+    val bindings: List<AnvilBinding>
   ) : AnvilElement()
 
   /**

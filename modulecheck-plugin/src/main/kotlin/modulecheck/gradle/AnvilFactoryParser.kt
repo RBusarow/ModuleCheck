@@ -15,6 +15,9 @@
 
 package modulecheck.gradle
 
+import com.squareup.anvil.annotations.MergeComponent
+import dagger.Component
+import dagger.Module
 import modulecheck.api.Project2
 import modulecheck.api.context.importsForSourceSetName
 import modulecheck.api.context.jvmFilesForSourceSetName
@@ -24,14 +27,15 @@ import modulecheck.api.files.KotlinFile
 import modulecheck.api.toSourceSetName
 import modulecheck.core.CouldUseAnvilFinding
 import net.swiftzer.semver.SemVer
+import javax.inject.Inject
 import kotlin.LazyThreadSafetyMode.NONE
 
 object AnvilFactoryParser {
 
-  private const val anvilMergeComponent = "com.squareup.anvil.annotations.MergeComponent"
-  private const val daggerComponent = "dagger.Component"
-  private const val daggerInject = "dagger.Inject"
-  private const val daggerModule = "dagger.Module"
+  private  val anvilMergeComponent =  MergeComponent::class.java.canonicalName
+  private  val daggerComponent = Component::class.java.canonicalName
+  private  val daggerInject =  Inject::class.java.canonicalName
+  private  val daggerModule =  Module::class.java.canonicalName
 
   @Suppress("MagicNumber")
   private val minimumAnvilVersion = SemVer(2, 0, 11)

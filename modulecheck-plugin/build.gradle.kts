@@ -24,7 +24,9 @@ plugins {
 dependencies {
   compileOnly(gradleApi())
 
-  implementation(libs.anvil)
+  implementation(libs.dagger)
+  implementation(libs.anvil.annotations)
+  implementation(libs.anvil.plugin)
   implementation(libs.androidGradlePlugin)
   implementation(libs.kotlinCompiler)
   implementation(libs.kotlinGradlePlugin)

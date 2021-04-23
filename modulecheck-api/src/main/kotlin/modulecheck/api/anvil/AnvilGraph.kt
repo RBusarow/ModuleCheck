@@ -13,14 +13,14 @@
  * limitations under the License.
  */
 
-package modulecheck.api.context
+package modulecheck.api.anvil
 
 import modulecheck.api.ConfiguredProjectDependency
 import modulecheck.api.Project2
 import modulecheck.api.SourceSetName
-import modulecheck.api.anvil.AnvilScopeName
-import modulecheck.api.anvil.AnvilScopeNameEntry
-import modulecheck.api.anvil.RawAnvilAnnotatedType
+import modulecheck.api.context.ProjectContext
+import modulecheck.api.context.declarations
+import modulecheck.api.context.jvmFilesForSourceSetName
 import modulecheck.api.files.KotlinFile
 import modulecheck.psi.DeclarationName
 import modulecheck.psi.asDeclaractionName

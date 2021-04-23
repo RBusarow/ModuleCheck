@@ -13,34 +13,34 @@
  * limitations under the License.
  */
 
-package modulecheck.api.context
+package modulecheck.api.anvil
 
 import modulecheck.api.Project2
 import modulecheck.api.SourceSetName
-import modulecheck.api.anvil.AnvilScopeName
+import modulecheck.api.context.ProjectContext
 import modulecheck.psi.DeclarationName
 
-data class AnvilScopeContributions(
+data class AnvilScopeMerges(
   internal val delegate: Map<SourceSetName, Map<AnvilScopeName, Set<DeclarationName>>>
 ) : Map<SourceSetName, Map<AnvilScopeName, Set<DeclarationName>>> by delegate,
   ProjectContext.Element {
 
-  override val key: ProjectContext.Key<AnvilScopeContributions>
+  override val key: ProjectContext.Key<AnvilScopeMerges>
     get() = Key
 
-  companion object Key : ProjectContext.Key<AnvilScopeContributions> {
+  companion object Key : ProjectContext.Key<AnvilScopeMerges> {
 
-    override operator fun invoke(project: Project2): AnvilScopeContributions {
-      val map = project.anvilGraph.scopeContributions
+    override operator fun invoke(project: Project2): AnvilScopeMerges {
+      val map = project.anvilGraph.scopeMerges
 
-      return AnvilScopeContributions(map)
+      return AnvilScopeMerges(map)
     }
   }
 }
 
-val ProjectContext.anvilScopeContributions: AnvilScopeContributions
-  get() = get(AnvilScopeContributions)
+val ProjectContext.anvilScopeMerges: AnvilScopeMerges
+  get() = get(AnvilScopeMerges)
 
-fun ProjectContext.anvilScopeContributionsForSourceSetName(
+fun ProjectContext.anvilScopeMergesForSourceSetName(
   sourceSetName: SourceSetName
-): Map<AnvilScopeName, Set<DeclarationName>> = anvilScopeContributions[sourceSetName].orEmpty()
+): Map<AnvilScopeName, Set<DeclarationName>> = anvilScopeMerges[sourceSetName].orEmpty()
