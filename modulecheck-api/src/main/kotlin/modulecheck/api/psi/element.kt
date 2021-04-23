@@ -35,7 +35,7 @@ internal fun KtNamedDeclaration.requireFqName(): FqName = requireNotNull(fqName)
 }
 
 internal fun PsiElement.requireFqName(
-  module: Project2
+  project: Project2
 ): FqName {
   val containingKtFile = parentsWithSelf
     .filterIsInstance<KtPureElement>()
@@ -51,7 +51,7 @@ internal fun PsiElement.requireFqName(
     // An inner class reference like Abc.Inner is also considered a KtDotQualifiedExpression in
     // some cases.
     is KtDotQualifiedExpression -> {
-      module
+      project
         .resolveClassByFqName(FqName(text))
         ?.let { return it.fqNameSafe }
         ?: text
@@ -69,7 +69,7 @@ internal fun PsiElement.requireFqName(
 
         if (qualifierText != null) {
           // The generic might be fully qualified. Try to resolve it and return early.
-          module
+          project
             .resolveClassByFqName(FqName("$qualifierText.$className"))
             ?.let { return it.fqNameSafe }
 
@@ -84,7 +84,7 @@ internal fun PsiElement.requireFqName(
 
         // Sometimes a KtUserType is a fully qualified name. Give it a try and return early.
         if (text.contains(".") && text[0].isLowerCase()) {
-          module
+          project
             .resolveClassByFqName(FqName(text))
             ?.let { return it.fqNameSafe }
         }
@@ -99,7 +99,7 @@ internal fun PsiElement.requireFqName(
       if (children.size == 1) {
         try {
           // Could be a KtNullableType or KtUserType.
-          return children[0].requireFqName(module)
+          return children[0].requireFqName(project)
         } catch (e: Exception) {
           // Fallback to the text representation.
           text
@@ -108,8 +108,8 @@ internal fun PsiElement.requireFqName(
         text
       }
     }
-    is KtNullableType -> return innerType?.requireFqName(module) ?: failTypeHandling()
-    is KtAnnotationEntry -> return typeReference?.requireFqName(module) ?: failTypeHandling()
+    is KtNullableType -> return innerType?.requireFqName(project) ?: failTypeHandling()
+    is KtAnnotationEntry -> return typeReference?.requireFqName(project) ?: failTypeHandling()
     else -> failTypeHandling()
   }
 
@@ -128,7 +128,7 @@ internal fun PsiElement.requireFqName(
           return matchingImportPaths[0].fqName
         matchingImportPaths.size > 1 ->
           return matchingImportPaths.first { importPath ->
-            module.resolveClassByFqName(importPath.fqName) != null
+            project.resolveClassByFqName(importPath.fqName) != null
           }.fqName
       }
     }
@@ -142,32 +142,15 @@ internal fun PsiElement.requireFqName(
         matchingImportPaths.size > 1 ->
           return matchingImportPaths.first { importPath ->
             val fqName = FqName("${importPath.fqName.parent()}.$classReference")
-            module.resolveClassByFqName(fqName) != null
+            project.resolveClassByFqName(fqName) != null
           }.fqName
       }
     }
 
-  // If there is no import, then try to resolve the class with the same package as this file.
-  module.findClassOrTypeAlias(containingKtFile.packageFqName, classReference)
-    ?.let { return it.fqNameSafe }
+  project.resolveSimpleOrNull(containingKtFile, classReference)
+    ?.let { return it }
 
-  // If this doesn't work, then maybe a class from the Kotlin package is used.
-  module.resolveClassByFqName(FqName("kotlin.$classReference"))
-    ?.let { return it.fqNameSafe }
-
-  // If this doesn't work, then maybe a class from the Kotlin collection package is used.
-  module.resolveClassByFqName(FqName("kotlin.collections.$classReference"))
-    ?.let { return it.fqNameSafe }
-
-  // If this doesn't work, then maybe a class from the Kotlin jvm package is used.
-  module.resolveClassByFqName(FqName("kotlin.jvm.$classReference"))
-    ?.let { return it.fqNameSafe }
-
-  // Or java.lang.
-  module.resolveClassByFqName(FqName("java.lang.$classReference"))
-    ?.let { return it.fqNameSafe }
-
-  findFqNameInSuperTypes(module, classReference)
+  findFqNameInSuperTypes(project, classReference)
     ?.let { return it }
 
   containingKtFile.importDirectives
@@ -179,7 +162,7 @@ internal fun PsiElement.requireFqName(
       it.importPath?.fqName
     }
     .forEach { importFqName ->
-      module.findClassOrTypeAlias(importFqName, classReference)?.let { return it.fqNameSafe }
+      project.findClassOrTypeAlias(importFqName, classReference)?.let { return it.fqNameSafe }
     }
 
   // Check if it's a named import.
@@ -192,12 +175,39 @@ internal fun PsiElement.requireFqName(
   throw  Exception("Couldn't resolve FqName $classReference for Psi element: $text")
 }
 
+private fun Project2.resolveSimpleOrNull(
+  containingKtFile: KtFile,
+  classReference: String
+): FqName? {
+  // If there is no import, then try to resolve the class with the same package as this file.
+  findClassOrTypeAlias(containingKtFile.packageFqName, classReference)
+    ?.let { return it.fqNameSafe }
+
+  // If this doesn't work, then maybe a class from the Kotlin package is used.
+  resolveClassByFqName(FqName("kotlin.$classReference"))
+    ?.let { return it.fqNameSafe }
+
+  // If this doesn't work, then maybe a class from the Kotlin collection package is used.
+  resolveClassByFqName(FqName("kotlin.collections.$classReference"))
+    ?.let { return it.fqNameSafe }
+
+  // If this doesn't work, then maybe a class from the Kotlin jvm package is used.
+  resolveClassByFqName(FqName("kotlin.jvm.$classReference"))
+    ?.let { return it.fqNameSafe }
+
+  // Or java.lang.
+  resolveClassByFqName(FqName("java.lang.$classReference"))
+    ?.let { return it.fqNameSafe }
+
+  return null
+}
+
 private fun PsiElement.findFqNameInSuperTypes(
-  module: Project2,
+  project: Project2,
   classReference: String
 ): FqName? {
   fun tryToResolveClassFqName(outerClass: FqName): FqName? =
-    module
+    project
       .resolveClassByFqName(FqName("$outerClass.$classReference"))
       ?.fqNameSafe
 
@@ -207,7 +217,7 @@ private fun PsiElement.findFqNameInSuperTypes(
 
       // At this point we can't work with Psi APIs anymore. We need to resolve the super types
       // and try to find inner class in them.
-      val descriptor = clazz.requireClassDescriptor(module)
+      val descriptor = clazz.requireClassDescriptor(project)
       listOf(descriptor.defaultType).getAllSuperTypes()
         .mapNotNull { tryToResolveClassFqName(it) }
     }
@@ -223,15 +233,13 @@ internal fun List<KotlinType>.getAllSuperTypes(): Sequence<FqName> =
 
 internal fun KotlinType.classDescriptorForType() = DescriptorUtils.getClassDescriptorForType(this)
 
-fun KtClassOrObject.requireClassDescriptor(module: Project2): ClassDescriptor {
-  return module.resolveClassByFqName(requireFqName())
-    ?: throw  Exception(
-      "Couldn't resolve class for ${requireFqName()}."
-    )
+fun KtClassOrObject.requireClassDescriptor(project: Project2): ClassDescriptor {
+  return project.resolveClassByFqName(requireFqName())
+    ?: throw  Exception("Couldn't resolve class for ${requireFqName()}.")
 }
 
-fun FqName.requireClassDescriptor(module: Project2): ClassDescriptor {
-  return module.resolveClassByFqName(this)
+fun FqName.requireClassDescriptor(project: Project2): ClassDescriptor {
+  return project.resolveClassByFqName(this)
     ?: throw Exception("Couldn't resolve class for $this.")
 }
 
