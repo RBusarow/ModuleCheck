@@ -17,8 +17,6 @@ package modulecheck.api.psi
 
 import modulecheck.api.Project2
 import org.jetbrains.kotlin.com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.ClassifierDescriptorWithTypeParameters
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -53,7 +51,7 @@ internal fun PsiElement.requireFqName(
     is KtDotQualifiedExpression -> {
       project
         .resolveClassByFqName(FqName(text))
-        ?.let { return it.fqNameSafe }
+        ?.let { return it }
         ?: text
     }
     is KtNameReferenceExpression -> getReferencedName()
@@ -71,7 +69,7 @@ internal fun PsiElement.requireFqName(
           // The generic might be fully qualified. Try to resolve it and return early.
           project
             .resolveClassByFqName(FqName("$qualifierText.$className"))
-            ?.let { return it.fqNameSafe }
+            ?.let { return it }
 
           // If the name isn't fully qualified, then it's something like "Outer.Inner".
           // We can't use `text` here because that includes the type parameter(s).
@@ -86,7 +84,7 @@ internal fun PsiElement.requireFqName(
         if (text.contains(".") && text[0].isLowerCase()) {
           project
             .resolveClassByFqName(FqName(text))
-            ?.let { return it.fqNameSafe }
+            ?.let { return it }
         }
 
         // We can't use referencedName here. For inner classes like "Outer.Inner" it would only
@@ -162,7 +160,7 @@ internal fun PsiElement.requireFqName(
       it.importPath?.fqName
     }
     .forEach { importFqName ->
-      project.findClassOrTypeAlias(importFqName, classReference)?.let { return it.fqNameSafe }
+      project.findClassOrTypeAlias(importFqName, classReference)?.let { return it }
     }
 
   // Check if it's a named import.
@@ -180,25 +178,43 @@ private fun Project2.resolveSimpleOrNull(
   classReference: String
 ): FqName? {
   // If there is no import, then try to resolve the class with the same package as this file.
-  findClassOrTypeAlias(containingKtFile.packageFqName, classReference)
-    ?.let { return it.fqNameSafe }
+  return findClassOrTypeAlias(containingKtFile.packageFqName, classReference)
 
-  // If this doesn't work, then maybe a class from the Kotlin package is used.
-  resolveClassByFqName(FqName("kotlin.$classReference"))
-    ?.let { return it.fqNameSafe }
+    // If this doesn't work, then maybe a class from the Kotlin package is used.
+    ?: resolveClassByFqName(FqName("kotlin.$classReference"))
 
-  // If this doesn't work, then maybe a class from the Kotlin collection package is used.
-  resolveClassByFqName(FqName("kotlin.collections.$classReference"))
-    ?.let { return it.fqNameSafe }
+    // If this doesn't work, then maybe a class from the Kotlin collection package is used.
+    ?: resolveClassByFqName(FqName("kotlin.collections.$classReference"))
 
-  // If this doesn't work, then maybe a class from the Kotlin jvm package is used.
-  resolveClassByFqName(FqName("kotlin.jvm.$classReference"))
-    ?.let { return it.fqNameSafe }
+    // If this doesn't work, then maybe a class from the Kotlin jvm package is used.
+    ?: resolveClassByFqName(FqName("kotlin.jvm.$classReference"))
 
-  // Or java.lang.
-  resolveClassByFqName(FqName("java.lang.$classReference"))
-    ?.let { return it.fqNameSafe }
+    // Or java.lang.
+    ?: resolveClassByFqName(FqName("java.lang.$classReference"))
+}
 
+internal fun Project2.findClassOrTypeAlias(
+  packageName: FqName,
+  className: String
+): FqName? {
+  resolveClassByFqName(FqName("${packageName.safePackageString()}$className"))
+    ?.let { return it }
+
+  findTypeAliasAcrossModuleDependencies(ClassId(packageName, Name.identifier(className)))
+    ?.let { return it }
+
+  return null
+}
+
+internal fun Project2.resolveClassByFqName(
+  fqName: FqName
+): FqName? {
+  return null
+}
+
+internal fun Project2.findTypeAliasAcrossModuleDependencies(
+  classId: ClassId
+): FqName? {
   return null
 }
 
@@ -209,17 +225,17 @@ private fun PsiElement.findFqNameInSuperTypes(
   fun tryToResolveClassFqName(outerClass: FqName): FqName? =
     project
       .resolveClassByFqName(FqName("$outerClass.$classReference"))
-      ?.fqNameSafe
 
   return parents.filterIsInstance<KtClassOrObject>()
     .flatMap { clazz ->
       tryToResolveClassFqName(clazz.requireFqName())?.let { return@flatMap sequenceOf(it) }
 
+      TODO()
       // At this point we can't work with Psi APIs anymore. We need to resolve the super types
       // and try to find inner class in them.
-      val descriptor = clazz.requireClassDescriptor(project)
-      listOf(descriptor.defaultType).getAllSuperTypes()
-        .mapNotNull { tryToResolveClassFqName(it) }
+      // val descriptor = clazz.requireClassDescriptor(project)
+      // listOf(descriptor).getAllSuperTypes()
+      //   .mapNotNull { tryToResolveClassFqName(it) }
     }
     .firstOrNull()
 }
@@ -233,39 +249,14 @@ internal fun List<KotlinType>.getAllSuperTypes(): Sequence<FqName> =
 
 internal fun KotlinType.classDescriptorForType() = DescriptorUtils.getClassDescriptorForType(this)
 
-fun KtClassOrObject.requireClassDescriptor(project: Project2): ClassDescriptor {
+fun KtClassOrObject.requireClassDescriptor(project: Project2): FqName {
   return project.resolveClassByFqName(requireFqName())
     ?: throw  Exception("Couldn't resolve class for ${requireFqName()}.")
 }
 
-fun FqName.requireClassDescriptor(project: Project2): ClassDescriptor {
+fun FqName.requireClassDescriptor(project: Project2): FqName {
   return project.resolveClassByFqName(this)
     ?: throw Exception("Couldn't resolve class for $this.")
-}
-
-internal fun Project2.findClassOrTypeAlias(
-  packageName: FqName,
-  className: String
-): ClassifierDescriptorWithTypeParameters? {
-  resolveClassByFqName(FqName("${packageName.safePackageString()}$className"))
-    ?.let { return it }
-
-  findTypeAliasAcrossModuleDependencies(ClassId(packageName, Name.identifier(className)))
-    ?.let { return it }
-
-  return null
-}
-
-internal fun Project2.resolveClassByFqName(
-  fqName: FqName
-): ClassDescriptor? {
-  return null
-}
-
-internal fun Project2.findTypeAliasAcrossModuleDependencies(
-  classId: ClassId
-): ClassDescriptor? {
-  return null
 }
 
 /**
