@@ -16,7 +16,10 @@
 package modulecheck.gradle
 
 import com.android.Version
-import com.android.build.gradle.*
+import com.android.build.gradle.AppExtension
+import com.android.build.gradle.BaseExtension
+import com.android.build.gradle.LibraryExtension
+import com.android.build.gradle.TestExtension
 import com.android.build.gradle.api.BaseVariant
 import com.android.build.gradle.internal.api.TestedVariant
 import com.squareup.anvil.plugin.AnvilExtension
@@ -180,21 +183,19 @@ class GradleProjectProvider(
       }
       .toSet()
 
-  private fun GradleProject.projectDependencies(): Lazy<ProjectDependencies> =
-    lazy {
-      val map = configurations
-        .map { config ->
-          config.name.asConfigurationName() to config.dependencies.withType(ProjectDependency::class.java)
-            .map {
-              ConfiguredProjectDependency(
-                configurationName = config.name.asConfigurationName(),
-                project = get(it.dependencyProject.path)
-              )
-            }
-        }
-        .toMap()
-      ProjectDependencies(map)
-    }
+  private fun GradleProject.projectDependencies(): Lazy<ProjectDependencies> = lazy {
+    val map = configurations
+      .associate { config ->
+        config.name.asConfigurationName() to config.dependencies.withType(ProjectDependency::class.java)
+          .map {
+            ConfiguredProjectDependency(
+              configurationName = config.name.asConfigurationName(),
+              project = get(it.dependencyProject.path)
+            )
+          }
+      }
+    ProjectDependencies(map)
+  }
 
   private fun GradleProject.jvmSourceSets(): Map<SourceSetName, SourceSet> = convention
     .findPlugin(JavaPluginConvention::class)
