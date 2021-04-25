@@ -13,6 +13,23 @@
  * limitations under the License.
  */
 
+@file:Suppress("ComplexMethod", "NestedBlockDepth", "TooManyFunctions")
+
+/*
+ * Copyright (C) 2021 Rick Busarow
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package modulecheck.api.psi
 
 import modulecheck.api.Project2
@@ -40,7 +57,7 @@ internal fun PsiElement.requireFqName(
     .first()
     .containingKtFile
 
-  fun failTypeHandling(): Nothing = throw Exception(
+  fun failTypeHandling(): Nothing = throw ModuleCheckException(
     "Don't know how to handle Psi element: $text"
   )
 
@@ -98,7 +115,7 @@ internal fun PsiElement.requireFqName(
         try {
           // Could be a KtNullableType or KtUserType.
           return children[0].requireFqName(project)
-        } catch (e: Exception) {
+        } catch (e: ModuleCheckException) {
           // Fallback to the text representation.
           text
         }
@@ -170,7 +187,7 @@ internal fun PsiElement.requireFqName(
     ?.let { return it }
 
   // Everything else isn't supported.
-  throw  Exception("Couldn't resolve FqName $classReference for Psi element: $text")
+  throw ModuleCheckException("Couldn't resolve FqName $classReference for Psi element: $text")
 }
 
 private fun Project2.resolveSimpleOrNull(
@@ -251,12 +268,12 @@ internal fun KotlinType.classDescriptorForType() = DescriptorUtils.getClassDescr
 
 fun KtClassOrObject.requireClassDescriptor(project: Project2): FqName {
   return project.resolveClassByFqName(requireFqName())
-    ?: throw  Exception("Couldn't resolve class for ${requireFqName()}.")
+    ?: throw ModuleCheckException("Couldn't resolve class for ${requireFqName()}.")
 }
 
 fun FqName.requireClassDescriptor(project: Project2): FqName {
   return project.resolveClassByFqName(this)
-    ?: throw Exception("Couldn't resolve class for $this.")
+    ?: throw ModuleCheckException("Couldn't resolve class for $this.")
 }
 
 /**
@@ -276,3 +293,5 @@ internal fun FqName.safePackageString(
     val suffix = if (dotSuffix) "." else ""
     "$prefix$this$suffix"
   }
+
+class ModuleCheckException(message: String) : Exception(message)

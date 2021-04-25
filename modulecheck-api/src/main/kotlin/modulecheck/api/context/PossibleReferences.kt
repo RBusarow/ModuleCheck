@@ -17,10 +17,11 @@ package modulecheck.api.context
 
 import modulecheck.api.Project2
 import modulecheck.api.SourceSetName
+import org.jetbrains.kotlin.name.FqName
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 
-typealias PossibleReferenceName = String
+typealias PossibleReferenceName = FqName
 
 data class PossibleReferences(
   internal val delegate: ConcurrentMap<SourceSetName, Set<ImportName>>

@@ -58,8 +58,7 @@ val daggerAssistedFqName = FqName(Assisted::class.java.canonicalName)
 val daggerAssistedInjectFqName = FqName(AssistedInject::class.java.canonicalName)
 val daggerBindsFqName = FqName(Binds::class.java.canonicalName)
 val daggerComponentFqName = FqName(Component::class.java.canonicalName)
-val daggerInjectFqName = FqName(Inject::class.java.canonicalName)
-val daggerLazyFqName = FqName(Lazy::class.java.canonicalName)
+val daggerLazyFqName = FqName(dagger.Lazy::class.java.canonicalName)
 val daggerMapKeyFqName = FqName(MapKey::class.java.canonicalName)
 val daggerModuleFqName = FqName(Module::class.java.canonicalName)
 val daggerProvidesFqName = FqName(Provides::class.java.canonicalName)
@@ -86,7 +85,10 @@ sealed class AnvilElement {
   /**
    * Added to Anvil using `@ContributesTo`.
    *
-   * TODODOTODOEODODOTODODODODODOODD
+   * The referencedDeclaration might be a parameter elsewhere, but seems like it'd be found through
+   * normal PSI parsing without additional logic.  That might be wrong.
+   *
+   * If any binding references a type which is used, then this module is also used.
    */
   data class AnvilContributedModule(
     override val scopeName: AnvilScopeName,

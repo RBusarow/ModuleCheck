@@ -15,10 +15,11 @@
 
 package modulecheck.gradle
 
-import com.squareup.anvil.annotations.MergeComponent
-import dagger.Component
-import dagger.Module
 import modulecheck.api.Project2
+import modulecheck.api.anvil.anvilMergeComponentFqName
+import modulecheck.api.anvil.daggerComponentFqName
+import modulecheck.api.anvil.daggerModuleFqName
+import modulecheck.api.anvil.injectFqName
 import modulecheck.api.context.importsForSourceSetName
 import modulecheck.api.context.jvmFilesForSourceSetName
 import modulecheck.api.context.possibleReferencesForSourceSetName
@@ -27,15 +28,9 @@ import modulecheck.api.files.KotlinFile
 import modulecheck.api.toSourceSetName
 import modulecheck.core.CouldUseAnvilFinding
 import net.swiftzer.semver.SemVer
-import javax.inject.Inject
 import kotlin.LazyThreadSafetyMode.NONE
 
 object AnvilFactoryParser {
-
-  private  val anvilMergeComponent =  MergeComponent::class.java.canonicalName
-  private  val daggerComponent = Component::class.java.canonicalName
-  private  val daggerInject =  Inject::class.java.canonicalName
-  private  val daggerModule =  Module::class.java.canonicalName
 
   @Suppress("MagicNumber")
   private val minimumAnvilVersion = SemVer(2, 0, 11)
@@ -62,10 +57,10 @@ object AnvilFactoryParser {
         project.possibleReferencesForSourceSetName("test".toSourceSetName())
     }
 
-    val createsComponent = allImports.contains(daggerComponent) ||
-      allImports.contains(anvilMergeComponent) ||
-      maybeExtra.contains(daggerComponent) ||
-      maybeExtra.contains(anvilMergeComponent)
+    val createsComponent = allImports.contains(daggerComponentFqName) ||
+      allImports.contains(anvilMergeComponentFqName) ||
+      maybeExtra.contains(daggerComponentFqName) ||
+      maybeExtra.contains(anvilMergeComponentFqName)
 
     if (createsComponent) return emptyList()
 
@@ -73,10 +68,10 @@ object AnvilFactoryParser {
       .jvmFilesForSourceSetName("main".toSourceSetName())
       .filterIsInstance<JavaFile>()
       .any { file ->
-        file.imports.contains(daggerInject) ||
-          file.imports.contains(daggerModule) ||
-          file.maybeExtraReferences.contains(daggerInject) ||
-          file.maybeExtraReferences.contains(daggerModule)
+        file.imports.contains(injectFqName) ||
+          file.imports.contains(daggerModuleFqName) ||
+          file.maybeExtraReferences.contains(injectFqName) ||
+          file.maybeExtraReferences.contains(daggerModuleFqName)
       }
 
     if (usesDaggerInJava) return emptyList()
@@ -85,16 +80,16 @@ object AnvilFactoryParser {
       .jvmFilesForSourceSetName("main".toSourceSetName())
       .filterIsInstance<KotlinFile>()
       .any { file ->
-        file.imports.contains(daggerInject) ||
-          file.imports.contains(daggerModule) ||
-          file.maybeExtraReferences.contains(daggerInject) ||
-          file.maybeExtraReferences.contains(daggerModule)
+        file.imports.contains(injectFqName) ||
+          file.imports.contains(daggerModuleFqName) ||
+          file.maybeExtraReferences.contains(injectFqName) ||
+          file.maybeExtraReferences.contains(daggerModuleFqName)
       }
 
     if (!usesDaggerInKotlin) return emptyList()
 
     val couldBeAnvil =
-      !allImports.contains(daggerComponent) && !maybeExtra.contains(daggerComponent)
+      !allImports.contains(daggerComponentFqName) && !maybeExtra.contains(daggerComponentFqName)
 
     return if (couldBeAnvil) {
       listOf(CouldUseAnvilFinding(project.buildFile, project.path))

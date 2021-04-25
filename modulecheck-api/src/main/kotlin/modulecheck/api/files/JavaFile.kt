@@ -23,6 +23,8 @@ import com.github.javaparser.ast.body.TypeDeclaration
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import modulecheck.api.JvmFile
 import modulecheck.psi.asDeclaractionName
+import modulecheck.psi.internal.toFqName
+import org.jetbrains.kotlin.name.FqName
 import java.io.File
 
 class JavaFile(val file: File) : JvmFile() {
@@ -62,16 +64,17 @@ class JavaFile(val file: File) : JvmFile() {
     )
   }
 
-  override val packageFqName by lazy { parsed.packageFqName }
+  override val packageFqName by lazy { parsed.packageFqName.toFqName() }
 
   override val imports by lazy {
     parsed
       .imports
       .map {
-        it.toString()
+        val fq = it.toString()
           .replace("import", "")
           .replace(";", "")
           .trim()
+        FqName(fq)
       }.toSet()
   }
 
@@ -93,12 +96,13 @@ class JavaFile(val file: File) : JvmFile() {
       }.toSet()
   }
 
-  override val maybeExtraReferences: Set<String> by lazy {
+  override val maybeExtraReferences: Set<FqName> by lazy {
     parsed.classOrInterfaceTypes
       .map { it.nameWithScope }
       .flatMap { name ->
         wildcardImports.map { wildcardImport ->
-          wildcardImport.replace("*", name)
+          wildcardImport
+            .replace("*", name).toFqName()
         }
       }
       .toSet()

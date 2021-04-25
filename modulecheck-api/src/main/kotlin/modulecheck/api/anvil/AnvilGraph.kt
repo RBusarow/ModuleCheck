@@ -25,6 +25,7 @@ import modulecheck.api.files.KotlinFile
 import modulecheck.psi.DeclarationName
 import modulecheck.psi.asDeclaractionName
 import modulecheck.psi.internal.getByNameOrIndex
+import modulecheck.psi.internal.toFqName
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -81,20 +82,21 @@ data class AnvilGraph(
       )
     }
 
-    private fun contributeAnnotations(): Set<String> = setOf(
-      "com.squareup.anvil.annotations.ContributesTo",
-      "com.squareup.anvil.annotations.ContributesBinding",
-      "com.squareup.anvil.annotations.ContributesMultibinding"
+    private fun contributeAnnotations(): Set<FqName> = setOf(
+      anvilContributesToFqName,
+      anvilContributesBindingFqName,
+      anvilContributesMultibindingFqName
     )
 
-    private fun mergeAnnotations(): Set<String> = setOf(
-      "com.squareup.anvil.annotations.MergeComponent",
-      "com.squareup.anvil.annotations.MergeSubcomponent"
+    private fun mergeAnnotations(): Set<FqName> = setOf(
+      anvilMergeComponentFqName,
+      anvilMergeSubcomponentFqName,
+      anvilMergeInterfacesFqName
     )
 
     private fun Project2.declarationsForScopeName(
-      allAnnotations: Set<String>,
-      mergeAnnotations: Set<String>
+      allAnnotations: Set<FqName>,
+      mergeAnnotations: Set<FqName>
     ): Pair<Map<AnvilScopeName, Set<DeclarationName>>, Map<AnvilScopeName, Set<DeclarationName>>> {
       val mergedMap = mutableMapOf<AnvilScopeName, MutableSet<DeclarationName>>()
       val contributedMap = mutableMapOf<AnvilScopeName, MutableSet<DeclarationName>>()
@@ -154,8 +156,8 @@ data class AnvilGraph(
     }
 
     private fun KotlinFile.getScopeArguments(
-      allAnnotations: Set<String>,
-      mergeAnnotations: Set<String>
+      allAnnotations: Set<FqName>,
+      mergeAnnotations: Set<FqName>
     ): ScopeArgumentParseResult {
       val mergeArguments = mutableSetOf<RawAnvilAnnotatedType>()
       val contributeArguments = mutableSetOf<RawAnvilAnnotatedType>()
@@ -170,14 +172,14 @@ data class AnvilGraph(
           .filter { annotationEntry ->
             val typeRef = annotationEntry.typeReference?.text ?: return@filter false
 
-            allAnnotations.any { it.endsWith(typeRef) }
+            allAnnotations.any { it.asString().endsWith(typeRef) }
           }
           .forEach { annotationEntry ->
             val typeRef = annotationEntry.typeReference!!.text
 
             val raw = annotationEntry.toRawAnvilAnnotatedType(typeFqName) ?: return@forEach
 
-            if (mergeAnnotations.any { it.endsWith(typeRef) }) {
+            if (mergeAnnotations.any { it.asString().endsWith(typeRef) }) {
               mergeArguments.add(raw)
             } else {
               contributeArguments.add(raw)
@@ -208,6 +210,7 @@ data class AnvilGraph(
         .replace(".+[=]+".toRegex(), "") // remove named arguments
         .replace("::class", "")
         .trim()
+        .toFqName()
 
       return RawAnvilAnnotatedType(
         declarationName = typeFqName.asDeclaractionName(),
@@ -225,7 +228,7 @@ data class AnvilGraph(
       // if scope is directly imported (most likely),
       // then use that fully qualified import
       val rawScopeName = kotlinFile.imports.firstOrNull { import ->
-        import.endsWith(scopeNameEntry.name)
+        import.shortName() == scopeNameEntry.name.shortName()
       }
         ?.asDeclaractionName()
         // if the scope is wildcard-imported
@@ -241,13 +244,17 @@ data class AnvilGraph(
             dn.fqName in kotlinFile.maybeExtraReferences
           }
           .firstOrNull { dn ->
-            dn.fqName.endsWith(scopeNameEntry.name)
+            dn.fqName.shortName() == scopeNameEntry.name.shortName()
           } // Scope must be defined in this same module
         ?: kotlinFile
           .maybeExtraReferences
           .firstOrNull { maybeExtra ->
-            maybeExtra.startsWith(kotlinFile.packageFqName) &&
-              maybeExtra.endsWith(scopeNameEntry.name)
+            maybeExtra
+              .asString()
+              .startsWith(kotlinFile.packageFqName.asString()) &&
+              maybeExtra
+                .asString()
+                .endsWith(scopeNameEntry.name.asString())
           }
           ?.asDeclaractionName()
         // Scope must be defined in this same package

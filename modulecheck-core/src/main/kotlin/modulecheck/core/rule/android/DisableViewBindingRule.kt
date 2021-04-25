@@ -23,6 +23,7 @@ import modulecheck.api.context.importsForSourceSetName
 import modulecheck.api.context.possibleReferencesForSourceSetName
 import modulecheck.api.settings.ModuleCheckSettings
 import modulecheck.core.rule.ModuleCheckRule
+import modulecheck.psi.internal.toFqName
 import net.swiftzer.semver.SemVer
 import java.io.File
 
@@ -68,7 +69,7 @@ class DisableViewBindingRule(
           .split("_")
           .joinToString("") { fragment -> fragment.capitalize() } + "Binding"
 
-        val reference = "$basePackage.databinding.$generated"
+        val reference = "$basePackage.databinding.$generated".toFqName()
 
         val usedInProject = project
           .importsForSourceSetName(SourceSetName.MAIN)

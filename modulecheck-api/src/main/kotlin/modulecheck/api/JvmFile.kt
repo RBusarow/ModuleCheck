@@ -16,11 +16,12 @@
 package modulecheck.api
 
 import modulecheck.psi.DeclarationName
+import org.jetbrains.kotlin.name.FqName
 
 abstract class JvmFile {
   abstract val name: String
-  abstract val packageFqName: String
-  abstract val imports: Set<String>
+  abstract val packageFqName: FqName
+  abstract val imports: Set<FqName>
   abstract val declarations: Set<DeclarationName>
 
   override fun toString(): String {
@@ -35,5 +36,5 @@ abstract class JvmFile {
   }
 
   abstract val wildcardImports: Set<String>
-  abstract val maybeExtraReferences: Set<String>
+  abstract val maybeExtraReferences: Set<FqName>
 }

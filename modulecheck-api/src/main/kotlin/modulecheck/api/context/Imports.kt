@@ -17,10 +17,12 @@ package modulecheck.api.context
 
 import modulecheck.api.Project2
 import modulecheck.api.SourceSetName
+import modulecheck.psi.internal.toFqName
+import org.jetbrains.kotlin.name.FqName
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 
-typealias ImportName = String
+typealias ImportName = FqName
 
 data class Imports(
   internal val delegate: ConcurrentMap<SourceSetName, Set<ImportName>>
@@ -43,7 +45,7 @@ data class Imports(
             .toSet()
           val layout = project[LayoutFiles][name]
             .orEmpty()
-            .flatMap { it.customViews }
+            .flatMap { it.customViews.map { view -> view.toFqName() } }
             .toSet()
 
           val combined = jvm + layout

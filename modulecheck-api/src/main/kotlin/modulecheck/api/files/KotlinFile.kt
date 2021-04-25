@@ -19,6 +19,7 @@ import modulecheck.api.JvmFile
 import modulecheck.psi.DeclarationVisitor
 import modulecheck.psi.ReferenceVisitor
 import modulecheck.psi.UsedImportsVisitor
+import modulecheck.psi.internal.toFqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingContext
 
@@ -29,7 +30,7 @@ class KotlinFile(
 
   override val name = ktFile.name
 
-  override val packageFqName by lazy { ktFile.packageFqName.asString() }
+  override val packageFqName by lazy { ktFile.packageFqName  }
 
   override val imports by lazy {
 
@@ -38,7 +39,7 @@ class KotlinFile(
       .mapNotNull { importDirective ->
         importDirective
           .importPath
-          ?.pathStr
+          ?.fqName
       }
       .toSet()
   }
@@ -64,21 +65,28 @@ class KotlinFile(
 
   val apiReferences by lazy {
 
-    val replacedWildcards = wildcardImports.flatMap { wildardImport ->
+    val replacedWildcards = wildcardImports.flatMap { wildcardImport ->
 
       referenceVisitor.apiReferences.map { apiReference ->
-        wildardImport.replace("*", apiReference)
+        wildcardImport
+          .replace("*", apiReference)
+          .toFqName()
       }
     }
       .toSet()
 
-    val simple = referenceVisitor.apiReferences + referenceVisitor.apiReferences.map {
-      ktFile.packageFqName.asString() + "." + it
-    }
+    val simple = (
+      referenceVisitor.apiReferences + referenceVisitor
+        .apiReferences
+        .map {
+          "${ktFile.packageFqName.asString()}.$it"
+        }
+      )
+      .map { it.toFqName() }
 
     val imported = imports.filter { imp ->
       referenceVisitor.apiReferences.any { ref ->
-        imp.endsWith(ref)
+        imp.asString().endsWith(ref)
       }
     }
 
@@ -100,7 +108,7 @@ class KotlinFile(
       .mapNotNull { tr ->
         CHILD_PARAMETERS_REGEX.find(tr)?.value
       }
-      .filterNot { it in imports }
+      .filterNot { it.toFqName() in imports }
       .toSet()
   }
 
@@ -124,14 +132,17 @@ class KotlinFile(
 
     val allOther = typeReferences + callableReferences + qualifiedExpressions
 
-    allOther + allOther.map {
-      ktFile.packageFqName.asString() + "." + it
-    } + wildcardImports.flatMap { wi ->
+    (
+      allOther + allOther.map {
+        ktFile.packageFqName.asString() + "." + it
+      } + wildcardImports.flatMap { wi ->
 
-      allOther.map { tr ->
-        wi.replace("*", tr)
+        allOther.map { tr ->
+          wi.replace("*", tr)
+        }
       }
-    }
+      )
+      .map { it.toFqName() }
       .toSet()
   }
 

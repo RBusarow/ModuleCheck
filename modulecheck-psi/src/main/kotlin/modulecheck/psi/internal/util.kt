@@ -15,6 +15,7 @@
 
 package modulecheck.psi.internal
 
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtValueArgumentList
 
@@ -26,3 +27,5 @@ fun KtValueArgumentList.getByNameOrIndex(index: Int, name: String): KtValueArgum
     ?: arguments
       .getOrNull(index)
 }
+
+fun String.toFqName() = FqName(this)

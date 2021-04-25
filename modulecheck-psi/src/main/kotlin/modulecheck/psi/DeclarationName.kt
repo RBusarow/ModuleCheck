@@ -15,9 +15,10 @@
 
 package modulecheck.psi
 
+import modulecheck.psi.internal.toFqName
 import org.jetbrains.kotlin.name.FqName
 
-data class DeclarationName(val fqName: String)
+data class DeclarationName(val fqName: FqName)
 
-fun String.asDeclaractionName(): DeclarationName = DeclarationName(this)
-fun FqName.asDeclaractionName(): DeclarationName = DeclarationName(asString())
+fun String.asDeclaractionName(): DeclarationName = DeclarationName(this.toFqName())
+fun FqName.asDeclaractionName(): DeclarationName = DeclarationName(this)

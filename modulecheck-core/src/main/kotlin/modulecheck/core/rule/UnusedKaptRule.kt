@@ -91,7 +91,7 @@ class UnusedKaptRule(
 
       imports.any { import ->
 
-        annotationRegex.matches(import)
+        annotationRegex.matches(import.asString())
       }
     }
 }

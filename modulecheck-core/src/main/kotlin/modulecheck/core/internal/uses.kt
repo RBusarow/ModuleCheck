@@ -63,7 +63,7 @@ fun Project2.usesInConfig(
 
   val rReferences =
     possibleReferencesForSourceSetName(config.name.toSourceSetName())
-      .filter { it.startsWith("R.") }
+      .filter { it.asString().startsWith("R.") }
 
   val dependencyAsAndroid = projectDependency as? AndroidProject2 ?: return false
 
