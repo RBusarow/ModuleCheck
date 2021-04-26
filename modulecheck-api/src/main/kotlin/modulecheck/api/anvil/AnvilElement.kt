@@ -93,7 +93,7 @@ sealed class AnvilElement {
   data class AnvilContributedModule(
     override val scopeName: AnvilScopeName,
     override val referencedDeclaration: DeclarationName,
-    val bindings: List<AnvilBinding>
+    val bindings: List<DeclarationName>
   ) : AnvilElement()
 
   /**
@@ -110,7 +110,8 @@ sealed class AnvilElement {
   /**
    * Added to Anvil using `@ContributesMultibinding`.
    *
-   * TODODOTODOEODODOTODODODODODOODD
+   * If the bound type is used anywhere in the merged graph,
+   * then the module with the merged component must depend upon this contributed binding's module.
    */
   data class AnvilMultiBinding(
     override val scopeName: AnvilScopeName,

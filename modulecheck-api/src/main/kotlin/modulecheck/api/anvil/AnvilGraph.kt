@@ -22,6 +22,7 @@ import modulecheck.api.context.ProjectContext
 import modulecheck.api.context.declarations
 import modulecheck.api.context.jvmFilesForSourceSetName
 import modulecheck.api.files.KotlinFile
+import modulecheck.api.psi.hasAnnotation
 import modulecheck.psi.DeclarationName
 import modulecheck.psi.asDeclaractionName
 import modulecheck.psi.internal.getByNameOrIndex
@@ -30,6 +31,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.classOrObjectRecursiveVisitor
+import org.jetbrains.kotlin.psi.psiUtil.getChildrenOfType
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
 data class AnvilGraph(
@@ -62,17 +64,26 @@ data class AnvilGraph(
       val mergedMap = mutableMapOf<SourceSetName, Map<AnvilScopeName, Set<DeclarationName>>>()
       val contributedMap = mutableMapOf<SourceSetName, Map<AnvilScopeName, Set<DeclarationName>>>()
 
+      val done = mutableSetOf<CompoundKey>()
+
       project.sourceSets
         .keys
         .forEach { sourceSetName ->
 
-          val (merged, contributed) = project.declarationsForScopeName(
-            allAnnotations = allAnnotations,
-            mergeAnnotations = mergeAnnotations
-          )
+          val key = CompoundKey.of(project, sourceSetName)
 
-          mergedMap[sourceSetName] = merged
-          contributedMap[sourceSetName] = contributed
+          if (!done.contains(key)) {
+            val (merged, contributed) = project.declarationsForScopeName(
+              sourceSetName = sourceSetName,
+              allAnnotations = allAnnotations,
+              mergeAnnotations = mergeAnnotations
+            )
+
+            mergedMap[sourceSetName] = merged
+            contributedMap[sourceSetName] = contributed
+
+            done.add(key)
+          }
         }
 
       return AnvilGraph(
@@ -95,60 +106,160 @@ data class AnvilGraph(
     )
 
     private fun Project2.declarationsForScopeName(
+      sourceSetName: SourceSetName,
       allAnnotations: Set<FqName>,
       mergeAnnotations: Set<FqName>
     ): Pair<Map<AnvilScopeName, Set<DeclarationName>>, Map<AnvilScopeName, Set<DeclarationName>>> {
       val mergedMap = mutableMapOf<AnvilScopeName, MutableSet<DeclarationName>>()
       val contributedMap = mutableMapOf<AnvilScopeName, MutableSet<DeclarationName>>()
 
-      sourceSets
-        .keys
-        .forEach { sourceSetName ->
+      jvmFilesForSourceSetName(sourceSetName)
+        .asSequence()
+        // Anvil only works with Kotlin, so no point in trying to parse Java files
+        .filterIsInstance<KotlinFile>()
+        .onEach { kotlinFile ->
 
-          jvmFilesForSourceSetName(sourceSetName)
-            .asSequence()
-            // Anvil only works with Kotlin, so no point in trying to parse Java files
-            .filterIsInstance<KotlinFile>()
-            // only re-visit files which have Anvil annotations
-            .filter { kotlinFile ->
-              kotlinFile.imports.any { it in allAnnotations } ||
-                kotlinFile.maybeExtraReferences.any { it in allAnnotations }
+          kotlinFile.ktFile.getChildrenOfType<KtAnnotated>()
+            .forEach { annotated ->
+
+              contributeAnnotations()
+                .forEach { ca ->
+
+                  val hasIt = annotated.hasAnnotation(ca)
+
+                  if (hasIt) {
+                    println(
+                      """ -------------------------------------------------------
+                          |annotated --> ${annotated.text}
+                          |ca        --> ${ca.asString()}
+                          |has it    --> $hasIt
+                           """.trimMargin()
+                    )
+                  }
+                }
             }
-            .forEach { kotlinFile ->
+          println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    file --> ${kotlinFile.name}   source set --> ${sourceSetName.value}")
+        }
+        // only re-visit files which have Anvil annotations
+        .filter { kotlinFile ->
+          kotlinFile.imports.any { it in allAnnotations } ||
+            kotlinFile.maybeExtraReferences.any { it in allAnnotations }
+        }
+        .forEach { kotlinFile ->
 
-              val (merged, contributed) = kotlinFile
-                .getScopeArguments(allAnnotations, mergeAnnotations)
+          val (merged, contributed) = kotlinFile
+            .getScopeArguments(allAnnotations, mergeAnnotations)
 
-              merged
-                .forEach { rawAnvilAnnotatedType ->
+          merged
+            .forEach { rawAnvilAnnotatedType ->
 
-                  val scopeName = getAnvilScopeName(
-                    scopeNameEntry = rawAnvilAnnotatedType.anvilScopeNameEntry,
-                    sourceSetName = sourceSetName,
-                    kotlinFile = kotlinFile
-                  )
+              val scopeName = getAnvilScopeName(
+                scopeNameEntry = rawAnvilAnnotatedType.anvilScopeNameEntry,
+                sourceSetName = sourceSetName,
+                kotlinFile = kotlinFile
+              )
 
-                  val declarationNames = mergedMap.getOrPut(scopeName) { mutableSetOf() }
+              val declarationNames = mergedMap.getOrPut(scopeName) { mutableSetOf() }
 
-                  declarationNames.add(rawAnvilAnnotatedType.declarationName)
+              declarationNames.add(rawAnvilAnnotatedType.declarationName)
 
-                  mergedMap[scopeName] = declarationNames
-                }
-              contributed
-                .forEach { rawAnvilAnnotatedType ->
+              mergedMap[scopeName] = declarationNames
+            }
+          contributed
+            .forEach { rawAnvilAnnotatedType ->
 
-                  val scopeName = getAnvilScopeName(
-                    scopeNameEntry = rawAnvilAnnotatedType.anvilScopeNameEntry,
-                    sourceSetName = sourceSetName,
-                    kotlinFile = kotlinFile
-                  )
+              val scopeName = getAnvilScopeName(
+                scopeNameEntry = rawAnvilAnnotatedType.anvilScopeNameEntry,
+                sourceSetName = sourceSetName,
+                kotlinFile = kotlinFile
+              )
 
-                  val declarationNames = contributedMap.getOrPut(scopeName) { mutableSetOf() }
+              val declarationNames = contributedMap.getOrPut(scopeName) { mutableSetOf() }
 
-                  declarationNames.add(rawAnvilAnnotatedType.declarationName)
+              declarationNames.add(rawAnvilAnnotatedType.declarationName)
 
-                  contributedMap[scopeName] = declarationNames
-                }
+              contributedMap[scopeName] = declarationNames
+            }
+        }
+
+      return mergedMap to contributedMap
+    }
+
+    private fun Project2.contributesElements(
+      sourceSetName: SourceSetName,
+      allAnnotations: Set<FqName>,
+      mergeAnnotations: Set<FqName>
+    ): Pair<Map<AnvilScopeName, Set<DeclarationName>>, Map<AnvilScopeName, Set<DeclarationName>>> {
+      val mergedMap = mutableMapOf<AnvilScopeName, MutableSet<DeclarationName>>()
+      val contributedMap = mutableMapOf<AnvilScopeName, MutableSet<DeclarationName>>()
+
+      // Anvil only works with Kotlin, so no point in trying to parse Java files
+      val files = jvmFilesForSourceSetName(sourceSetName)
+        .asSequence()
+
+        .filterIsInstance<KotlinFile>()
+
+      files.forEach { kotlinFile ->
+
+        kotlinFile
+          .ktFile
+          .getChildrenOfType<KtAnnotated>()
+          .forEach { annotated ->
+
+            when {
+              // contributed module
+              annotated.hasAnnotation(anvilContributesToFqName) &&
+                annotated.hasAnnotation(daggerModuleFqName) -> {
+              }
+              // contributed component
+              annotated.hasAnnotation(anvilContributesToFqName) -> { }
+              // contributed binding
+              annotated.hasAnnotation(anvilContributesBindingFqName) -> { }
+              // contributed multibinding
+              annotated.hasAnnotation(anvilContributesMultibindingFqName) -> { }
+            }
+
+          }
+      }
+        // only re-visit files which have Anvil annotations
+        .filter { kotlinFile ->
+          kotlinFile.imports.any { it in allAnnotations } ||
+            kotlinFile.maybeExtraReferences.any { it in allAnnotations }
+        }
+        .forEach { kotlinFile ->
+
+          val (merged, contributed) = kotlinFile
+            .getScopeArguments(allAnnotations, mergeAnnotations)
+
+          merged
+            .forEach { rawAnvilAnnotatedType ->
+
+              val scopeName = getAnvilScopeName(
+                scopeNameEntry = rawAnvilAnnotatedType.anvilScopeNameEntry,
+                sourceSetName = sourceSetName,
+                kotlinFile = kotlinFile
+              )
+
+              val declarationNames = mergedMap.getOrPut(scopeName) { mutableSetOf() }
+
+              declarationNames.add(rawAnvilAnnotatedType.declarationName)
+
+              mergedMap[scopeName] = declarationNames
+            }
+          contributed
+            .forEach { rawAnvilAnnotatedType ->
+
+              val scopeName = getAnvilScopeName(
+                scopeNameEntry = rawAnvilAnnotatedType.anvilScopeNameEntry,
+                sourceSetName = sourceSetName,
+                kotlinFile = kotlinFile
+              )
+
+              val declarationNames = contributedMap.getOrPut(scopeName) { mutableSetOf() }
+
+              declarationNames.add(rawAnvilAnnotatedType.declarationName)
+
+              contributedMap[scopeName] = declarationNames
             }
         }
 
@@ -231,7 +342,7 @@ data class AnvilGraph(
         import.shortName() == scopeNameEntry.name.shortName()
       }
         ?.asDeclaractionName()
-        // if the scope is wildcard-imported
+      // if the scope is wildcard-imported
         ?: dependenciesBySourceSetName[sourceSetName]
           .orEmpty()
           .asSequence()
@@ -277,3 +388,15 @@ data class AnvilGraph(
 
 val ProjectContext.anvilGraph: AnvilGraph
   get() = get(AnvilGraph)
+
+data class CompoundKey(val value: Int) {
+
+  companion object {
+
+    fun of(vararg key: Any?): CompoundKey = CompoundKey(
+      key.fold(0) { acc, any ->
+        (31 * acc) + (any?.hashCode() ?: 0)
+      }
+    )
+  }
+}
